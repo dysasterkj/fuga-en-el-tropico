@@ -1006,6 +1006,7 @@ func _build_extra2() -> void:
 	power_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	power_btn.pressed.connect(func(): power_pressed.emit())
 	power_btn.visible = false
+	_style_action_buttons()
 
 	var m: Control = pages["menu"]
 	xp_lbl = _lbl("", 18, Color("c4b5fd"), HORIZONTAL_ALIGNMENT_RIGHT)
@@ -1113,26 +1114,6 @@ PODER (botón morado): el poder de tu traje, con enfriamiento.", 14, Color("94a3
 	_center(prep_box, back)
 
 
-func set_weapon(kind: String, ammo: int, cd: float = 0.0) -> void:
-	fire_btn.visible = true
-	var names := {"coco": "COCO", "boom": "BUMERÁN", "bomb": "BOMBA"}
-	if ammo > 0 and kind != "":
-		fire_btn.text = "%s\n%d" % [names.get(kind, kind), ammo]
-		fire_btn.modulate.a = 1.0
-	else:
-		fire_btn.text = "GOLPE" if cd <= 0.0 else "GOLPE\n%.1f" % cd
-		fire_btn.modulate.a = 1.0 if cd <= 0.0 else 0.55
-
-
-func set_power(id: String, cd: float) -> void:
-	if id == "":
-		power_btn.visible = false
-		return
-	power_btn.visible = true
-	power_btn.text = "%s\n%s" % [String(GameState.POWERS[id].name).to_upper(), "LISTO" if cd <= 0.0 else "%ds" % int(ceil(cd))]
-	power_btn.modulate.a = 1.0 if cd <= 0.0 else 0.55
-
-
 func show_update_popup(version: String, notes: String) -> void:
 	_clear(upd_box)
 	upd_box.add_child(_lbl("¡NUEVA VERSIÓN!", 36, C_SUN, HORIZONTAL_ALIGNMENT_CENTER))
@@ -1168,3 +1149,117 @@ func set_update_status(text: String) -> void:
 
 func _goto_prep(m: String, n: int) -> void:
 	open_prep(m, n)
+
+
+# ---------- Botones redondos de acción (golpe / poder) con ícono ----------
+var fire_kind := "punch"
+var power_kind := ""
+var fire_icon: Control
+var power_icon: Control
+const POWER_SHORT := {"barrage": "TRIPLE", "dash": "VELOZ", "magnet": "IMÁN", "coins": "MONEDAS", "shield": "ESCUDO", "x2": "DOBLE", "blast": "EXPLOSIÓN", "heal": "RESPIRO"}
+
+
+func _glyph(c: Control, kind: String, sz: float) -> void:
+	var h := sz * 0.5
+	var gold := Color("fde047")
+	match kind:
+		"punch":
+			c.draw_circle(Vector2(h, h * 0.9), sz * 0.3, Color("e11d48"))
+			c.draw_rect(Rect2(h - sz * 0.2, h + sz * 0.16, sz * 0.4, sz * 0.18), Color.WHITE)
+		"coco":
+			c.draw_circle(Vector2(h, h), sz * 0.33, Color("92572a"))
+			c.draw_circle(Vector2(h, h * 0.8), sz * 0.08, Color("f1e3c8"))
+		"boom":
+			c.draw_line(Vector2(sz * 0.12, sz * 0.8), Vector2(h, sz * 0.25), gold, 9.0)
+			c.draw_line(Vector2(h, sz * 0.25), Vector2(sz * 0.88, sz * 0.8), Color("f59e0b"), 9.0)
+		"bomb":
+			c.draw_circle(Vector2(h, h * 1.1), sz * 0.32, Color("1f2937"))
+			c.draw_circle(Vector2(h * 1.25, h * 0.55), sz * 0.08, Color("fb923c"))
+		"barrage":
+			for i in 3:
+				c.draw_circle(Vector2(sz * (0.22 + i * 0.28), h), sz * 0.13, gold)
+		"dash":
+			for i in 2:
+				var x := sz * (0.2 + i * 0.3)
+				c.draw_polyline(PackedVector2Array([Vector2(x, sz * 0.2), Vector2(x + sz * 0.3, h), Vector2(x, sz * 0.8)]), Color.WHITE, 7.0)
+		"magnet":
+			c.draw_arc(Vector2(h, sz * 0.5), sz * 0.28, PI, TAU, 16, Color("fb7185"), 10.0)
+			c.draw_line(Vector2(h - sz * 0.28, sz * 0.5), Vector2(h - sz * 0.28, sz * 0.8), Color("fb7185"), 10.0)
+			c.draw_line(Vector2(h + sz * 0.28, sz * 0.5), Vector2(h + sz * 0.28, sz * 0.8), Color("fb7185"), 10.0)
+		"coins":
+			c.draw_circle(Vector2(h, h), sz * 0.34, gold)
+			c.draw_circle(Vector2(h, h), sz * 0.2, Color("f59e0b"))
+		"shield":
+			c.draw_colored_polygon(PackedVector2Array([Vector2(sz * 0.18, sz * 0.2), Vector2(sz * 0.82, sz * 0.2), Vector2(sz * 0.78, sz * 0.6), Vector2(h, sz * 0.88), Vector2(sz * 0.22, sz * 0.6)]), Color("5eead4"))
+		"x2":
+			c.draw_circle(Vector2(sz * 0.32, h), sz * 0.22, gold)
+			c.draw_circle(Vector2(sz * 0.68, h), sz * 0.22, Color("fbbf24"))
+		"blast":
+			var pts := PackedVector2Array()
+			for i in 16:
+				var ang := i * TAU / 16.0
+				var rr := sz * 0.46 if i % 2 == 0 else sz * 0.2
+				pts.append(Vector2(h + cos(ang) * rr, h + sin(ang) * rr))
+			c.draw_colored_polygon(pts, Color("fb923c"))
+		"heal":
+			c.draw_rect(Rect2(h - sz * 0.08, sz * 0.15, sz * 0.16, sz * 0.7), Color("4ade80"))
+			c.draw_rect(Rect2(sz * 0.15, h - sz * 0.08, sz * 0.7, sz * 0.16), Color("4ade80"))
+		_:
+			c.draw_circle(Vector2(h, h), sz * 0.3, Color.WHITE)
+
+
+func _round_style(b: Button, col: Color, border: Color) -> void:
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		var s := _sb(col if st != "pressed" else col.darkened(0.25), 56, border, 5)
+		s.shadow_size = 9
+		s.shadow_color = Color(0, 0, 0, 0.5)
+		s.shadow_offset = Vector2(0, 6)
+		b.add_theme_stylebox_override(st, s)
+	b.clip_text = true
+	b.add_theme_font_size_override("font_size", 14)
+
+
+func _make_icon(b: Button, getter: Callable) -> Control:
+	var ic := Control.new()
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(ic)
+	_place(ic, 34, 4, 44, 44)
+	ic.draw.connect(func(): _glyph(ic, String(getter.call()), 44.0))
+	return ic
+
+
+func _style_action_buttons() -> void:
+	_round_style(fire_btn, Color("f97316"), Color("fed7aa"))
+	_round_style(power_btn, Color("8b5cf6"), Color("ddd6fe"))
+	fire_icon = _make_icon(fire_btn, func(): return fire_kind)
+	power_icon = _make_icon(power_btn, func(): return power_kind)
+
+
+func set_weapon(kind: String, ammo: int, cd: float = 0.0) -> void:
+	fire_btn.visible = true
+	var names := {"coco": "COCO", "boom": "BUMERÁN", "bomb": "BOMBA"}
+	var k := "punch"
+	if ammo > 0 and kind != "":
+		k = kind
+		fire_btn.text = "\n\n\n%s %d" % [names.get(kind, kind), ammo]
+		fire_btn.modulate.a = 1.0
+	else:
+		fire_btn.text = "\n\n\nGOLPE" if cd <= 0.0 else "\n\n\n%.1f s" % cd
+		fire_btn.modulate.a = 1.0 if cd <= 0.0 else 0.6
+	if k != fire_kind:
+		fire_kind = k
+		if fire_icon:
+			fire_icon.queue_redraw()
+
+
+func set_power(id: String, cd: float) -> void:
+	if id == "":
+		power_btn.visible = false
+		return
+	power_btn.visible = true
+	power_btn.text = "\n\n\n%s" % (String(POWER_SHORT.get(id, "PODER")) if cd <= 0.0 else "%d s" % int(ceil(cd)))
+	power_btn.modulate.a = 1.0 if cd <= 0.0 else 0.6
+	if id != power_kind:
+		power_kind = id
+		if power_icon:
+			power_icon.queue_redraw()

@@ -51,6 +51,7 @@ var boost_t := 0.0
 var win_shown := false
 var test_mode := ""
 var test_give := ""
+var test_power := ""
 var test_level := 1
 
 # --- modo de pruebas (solo con argumentos de línea de comandos) ---
@@ -72,6 +73,8 @@ func _ready() -> void:
 			shot_path = a.substr(7)
 		elif a.begins_with("--shotframe="):
 			shot_frame = int(a.substr(12))
+		elif a.begins_with("--power="):
+			test_power = a.substr(8)
 		elif a.begins_with("--give="):
 			test_give = a.substr(7)
 		elif a.begins_with("--mode="):
@@ -304,6 +307,8 @@ func _start_run(consume_life: bool) -> void:
 	hud.show_game()
 	win_shown = false
 	power_id = GameState.power_of(GameState.equipped("costume"))
+	if test_power != "":
+		power_id = test_power
 	power_cd = 3.0
 	punch_cd = 0.0
 	boost_t = 0.0
