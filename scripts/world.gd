@@ -429,17 +429,26 @@ func _add_pickup(kind: String, lane: int, z: float) -> void:
 	n.position = Vector3(_x(lane), 1.0, z)
 	var orb := Node3D.new()
 	n.add_child(orb)
-	Toon.part(orb, Toon.sphere(0.4), info[0], Vector3(0, 0.3, 0))
-	Toon.part(orb, Toon.box(Vector3(0.14, 0.14, 0.14)), Color.WHITE, Vector3(0, 0.3, 0), Vector3(0.6, 0.6, 0), false)
-	var lb := Label3D.new()
-	lb.text = info[1]
-	lb.font_size = 64
-	lb.pixel_size = 0.009
-	lb.outline_size = 14
-	lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	lb.no_depth_test = true
-	lb.position = Vector3(0, 1.15, 0)
-	n.add_child(lb)
+	var c: Color = info[0]
+	Toon.part(orb, Toon.cyl(0.62, 0.62, 0.06), c.lightened(0.55), Vector3(0, 0.35, 0), Vector3(PI / 2, 0, 0), false)
+	match kind:
+		"magnet":
+			Toon.part(orb, Toon.box(Vector3(0.15, 0.52, 0.15)), Color("e63946"), Vector3(-0.2, 0.36, 0))
+			Toon.part(orb, Toon.box(Vector3(0.15, 0.52, 0.15)), Color("3a86ff"), Vector3(0.2, 0.36, 0))
+			Toon.part(orb, Toon.box(Vector3(0.55, 0.15, 0.15)), Color("6b7280"), Vector3(0, 0.1, 0))
+			Toon.part(orb, Toon.box(Vector3(0.15, 0.1, 0.16)), Color.WHITE, Vector3(-0.2, 0.64, 0), Vector3.ZERO, false)
+			Toon.part(orb, Toon.box(Vector3(0.15, 0.1, 0.16)), Color.WHITE, Vector3(0.2, 0.64, 0), Vector3.ZERO, false)
+		"shield":
+			Toon.part(orb, Toon.cyl(0.36, 0.2, 0.14), c, Vector3(0, 0.36, 0), Vector3(PI / 2, 0, 0))
+			Toon.part(orb, Toon.sphere(0.12), Color.WHITE, Vector3(0, 0.36, -0.1), Vector3.ZERO, false)
+		"x2":
+			Toon.part(orb, Toon.cyl(0.26, 0.26, 0.08), Color("ffc400"), Vector3(-0.14, 0.36, 0.05), Vector3(PI / 2, 0, 0))
+			Toon.part(orb, Toon.cyl(0.26, 0.26, 0.08), Color("ffd84d"), Vector3(0.14, 0.36, -0.05), Vector3(PI / 2, 0, 0))
+			Toon.part(orb, Toon.sphere(0.07), Color("e63946"), Vector3(0, 0.7, 0), Vector3.ZERO, false)
+		"fly":
+			Toon.part(orb, Toon.sphere(0.16), Color("ffd166"), Vector3(0, 0.36, 0))
+			Toon.part(orb, Toon.box(Vector3(0.38, 0.12, 0.05)), Color("ff9ecd"), Vector3(-0.3, 0.44, 0), Vector3(0, 0, 0.45))
+			Toon.part(orb, Toon.box(Vector3(0.38, 0.12, 0.05)), Color("7dd3fc"), Vector3(0.3, 0.44, 0), Vector3(0, 0, -0.45))
 	add_child(n)
 	picks.append({"node": n, "kind": kind, "orb": orb})
 

@@ -12,8 +12,8 @@ signal update_pressed
 
 const TAB_NAMES := {"char": "Personajes", "costume": "Disfraces", "head": "Gorros", "face": "Cara", "back": "Espalda"}
 
-const W := 540.0
-const H := 960.0
+var W := 540.0
+var H := 960.0
 
 var C_TEAL := Color("14b8a6")
 var C_CORAL := Color("ff6b6b")
@@ -61,6 +61,9 @@ var over_box: VBoxContainer
 
 func _ready() -> void:
 	layer = 10
+	var vs := get_viewport().get_visible_rect().size
+	W = vs.x
+	H = vs.y
 	root = Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -446,7 +449,7 @@ func _refresh_shop(msg: String = "") -> void:
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
 	tabs.add_theme_constant_override("separation", 6)
 	for t in GameState.TABS:
-		var tb := _btn(String(TAB_NAMES[t]), C_TEAL if t == shop_tab else Color("334155"), 14, 94, 38)
+		var tb := _btn(String(TAB_NAMES[t]), C_TEAL if t == shop_tab else Color("334155"), 13, 80, 38)
 		var tt: String = t
 		tb.pressed.connect(func(): _shop_set_tab(tt))
 		tabs.add_child(tb)
