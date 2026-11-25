@@ -9,6 +9,9 @@ signal resume_pressed
 signal look_preview(look: Dictionary)
 signal page_opened(page: String)
 signal update_pressed
+signal mode_start(mode: String, level: int)
+signal restart_pressed
+signal fire_pressed
 
 const TAB_NAMES := {"char": "Personajes", "costume": "Disfraces", "head": "Gorros", "face": "Cara", "back": "Espalda"}
 
@@ -74,7 +77,7 @@ func _ready() -> void:
 	_build_missions()
 	_build_ach()
 	_build_over()
-	_build_pause()
+	_build_extra()
 	show_menu()
 
 
@@ -274,6 +277,7 @@ func toast(text: String) -> void:
 
 
 func _process(delta: float) -> void:
+	_extra_process(delta)
 	if toast_t > 0.0:
 		toast_t -= delta
 		if toast_t <= 0.0:
@@ -348,7 +352,7 @@ func _build_menu() -> void:
 	m.add_child(vb)
 	_place(vb, 90, H - 370, W - 180, 330)
 	var play := _btn("JUGAR", C_TEAL, 36, 360, 84)
-	play.pressed.connect(func(): play_pressed.emit())
+	play.pressed.connect(func(): open_page("mode"))
 	vb.add_child(play)
 	var b1 := _btn("TIENDA", C_CORAL, 26, 360, 60)
 	b1.pressed.connect(func(): open_page("shop"))
@@ -374,6 +378,7 @@ func set_update(version: String) -> void:
 func show_menu() -> void:
 	menu_coins.text = "● %d" % int(GameState.data.coins)
 	menu_best.text = "Récord %d   ·   x%d" % [int(GameState.data.best), int(GameState.data.multiplier)]
+	_refresh_lives_row()
 	var n := GameState.ach_ready()
 	menu_ach_btn.text = "LOGROS" + ("  (%d nuevos)" % n if n > 0 else "")
 	_refresh_toggles()
@@ -386,6 +391,7 @@ func show_game() -> void:
 
 
 func open_page(id: String) -> void:
+	_pre_open(id)
 	match id:
 		"shop":
 			shop_tab = "char"
@@ -615,13 +621,337 @@ func _build_over() -> void:
 	over_box = _panel(p, Rect2(30, 120, W - 60, 720), C_PANEL)
 
 
-func show_over(run: Dictionary, msgs: Array, new_best: bool) -> void:
+# ---------- Pausa ----------
+func show_pause() -> void:
+	_show("pause")
+
+
+# ======================= Modos, niveles, vidas, armas =======================
+var fire_btn: Button
+var level_bar: ProgressBar
+var lives_row: Control
+var lives_hearts: HBoxContainer
+var lives_timer_lbl: Label
+var lives_buy_btn: Button
+var mode_box: VBoxContainer
+var levels_box: VBoxContainer
+var lives_box: VBoxContainer
+var lives_page_timer: Label
+var life_acc := 0.0
+
+
+func _icon(kind: String, sz: float, col: Color, filled: bool = true) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(sz, sz)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var a := col if filled else Color(col.r, col.g, col.b, 0.22)
+	c.draw.connect(func():
+		if kind == "heart":
+			var r := sz * 0.27
+			c.draw_circle(Vector2(sz * 0.3, sz * 0.34), r, a)
+			c.draw_circle(Vector2(sz * 0.7, sz * 0.34), r, a)
+			c.draw_colored_polygon(PackedVector2Array([Vector2(sz * 0.05, sz * 0.46), Vector2(sz * 0.95, sz * 0.46), Vector2(sz * 0.5, sz * 0.93)]), a)
+		else:
+			var pts := PackedVector2Array()
+			for i in 10:
+				var ang := -PI / 2.0 + i * PI / 5.0
+				var rr := sz * 0.48 if i % 2 == 0 else sz * 0.2
+				pts.append(Vector2(sz * 0.5 + cos(ang) * rr, sz * 0.54 + sin(ang) * rr))
+			c.draw_colored_polygon(pts, a))
+	return c
+
+
+func _hearts(box: HBoxContainer, sz: float) -> void:
+	_clear(box)
+	var n := GameState.lives()
+	for i in GameState.MAX_LIVES:
+		box.add_child(_icon("heart", sz, Color("f43f5e"), i < n))
+
+
+func _fmt_time(sec: int) -> String:
+	return "%d:%02d" % [sec / 60, sec % 60]
+
+
+func _lives_text() -> String:
+	if GameState.lives() >= GameState.MAX_LIVES:
+		return "Vidas completas"
+	return "Próxima vida en " + _fmt_time(GameState.life_seconds_left())
+
+
+func _buy_life_action() -> void:
+	if GameState.buy_life():
+		Sfx.play("buy")
+	else:
+		toast("No puedes comprar vida ahora")
+	_refresh_lives_row()
+	menu_coins.text = "● %d" % int(GameState.data.coins)
+
+
+func _build_extra() -> void:
+	# --- botón de arma y barra de nivel (en el HUD de carrera) ---
+	var g: Control = pages["game"]
+	fire_btn = _btn("", Color("f97316"), 18, 112, 112)
+	for st in ["normal", "hover", "pressed"]:
+		fire_btn.add_theme_stylebox_override(st, _sb(Color("f97316") if st != "pressed" else Color("c2410c"), 56, Color("fed7aa"), 4))
+	g.add_child(fire_btn)
+	_place(fire_btn, W - 144, H - 270, 112, 112)
+	fire_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	fire_btn.pressed.connect(func(): fire_pressed.emit())
+	fire_btn.visible = false
+	level_bar = _bar(0, 100, C_SUN)
+	g.add_child(level_bar)
+	_place(level_bar, 24, 78, W - 48, 10)
+	level_bar.visible = false
+
+	# --- fila de vidas en el menú ---
+	var m: Control = pages["menu"]
+	lives_row = Control.new()
+	lives_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(lives_row)
+	_place(lives_row, 24, H - 452, W - 48, 72)
+	var bg := Panel.new()
+	bg.add_theme_stylebox_override("panel", _sb(Color(0.03, 0.1, 0.18, 0.62), 18, Color(1, 1, 1, 0.18), 2))
+	lives_row.add_child(bg)
+	_place(bg, 0, 0, W - 48, 72)
+	lives_hearts = HBoxContainer.new()
+	lives_hearts.add_theme_constant_override("separation", 4)
+	lives_row.add_child(lives_hearts)
+	_place(lives_hearts, 14, 8, 220, 30)
+	lives_timer_lbl = _lbl("", 15, C_MUTED)
+	lives_row.add_child(lives_timer_lbl)
+	_place(lives_timer_lbl, 14, 42, 250, 24)
+	lives_buy_btn = _btn("+ VIDA  ● %d" % GameState.LIFE_COST, C_CORAL, 17, 170, 48)
+	lives_row.add_child(lives_buy_btn)
+	_place(lives_buy_btn, W - 48 - 184, 12, 170, 48)
+	lives_buy_btn.pressed.connect(_buy_life_action)
+
+	# --- páginas: modo, niveles, sin vidas ---
+	var pm := _page("mode")
+	var d1 := ColorRect.new()
+	d1.color = Color(0.02, 0.07, 0.12, 0.6)
+	d1.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pm.add_child(d1)
+	mode_box = _panel(pm, Rect2(26, (H - 640) * 0.5, W - 52, 640), C_PANEL)
+	var pl := _page("levels")
+	var d2 := ColorRect.new()
+	d2.color = Color(0.02, 0.07, 0.12, 0.6)
+	d2.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pl.add_child(d2)
+	levels_box = _panel(pl, Rect2(16, 30, W - 32, H - 60), C_PANEL)
+	var pv := _page("lives")
+	var d3 := ColorRect.new()
+	d3.color = Color(0.02, 0.07, 0.12, 0.66)
+	d3.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pv.add_child(d3)
+	lives_box = _panel(pv, Rect2(40, (H - 470) * 0.5, W - 80, 470), C_PANEL)
+	_build_pause()
+
+
+func _pre_open(id: String) -> void:
+	match id:
+		"mode": _refresh_mode()
+		"levels": _refresh_levels()
+		"lives": _refresh_lives_page()
+
+
+func _extra_process(delta: float) -> void:
+	life_acc += delta
+	if life_acc >= 0.5:
+		life_acc = 0.0
+		if pages["menu"].visible:
+			_refresh_lives_row()
+		if pages["lives"].visible:
+			_refresh_lives_page()
+
+
+func _refresh_lives_row() -> void:
+	_hearts(lives_hearts, 28.0)
+	lives_timer_lbl.text = _lives_text()
+	lives_buy_btn.disabled = GameState.lives() >= GameState.MAX_LIVES or int(GameState.data.coins) < GameState.LIFE_COST
+
+
+func _back_row(parent: Control, target: String = "") -> void:
+	var back := _btn("VOLVER", Color("3b82f6"), 24, 200, 56)
+	if target == "":
+		back.pressed.connect(close_page)
+	else:
+		back.pressed.connect(func(): open_page(target))
+	var hb := HBoxContainer.new()
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.add_child(back)
+	parent.add_child(hb)
+
+
+func _center(parent: Control, c: Control) -> void:
+	var hb := HBoxContainer.new()
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.add_child(c)
+	parent.add_child(hb)
+
+
+func _refresh_mode() -> void:
+	_clear(mode_box)
+	mode_box.add_child(_lbl("ELIGE TU MODO", 38, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var hh := HBoxContainer.new()
+	hh.alignment = BoxContainer.ALIGNMENT_CENTER
+	var hs := HBoxContainer.new()
+	hs.add_theme_constant_override("separation", 4)
+	_hearts(hs, 26.0)
+	hh.add_child(hs)
+	mode_box.add_child(hh)
+	var endless := _btn("INFINITO", C_TEAL, 34, 380, 84)
+	endless.pressed.connect(func(): mode_start.emit("endless", 1))
+	_center(mode_box, endless)
+	var d1 := _lbl("Corre sin parar. Cada 500 m cambia el mundo y todo se pone más difícil.   Récord: %d" % int(GameState.data.best), 17, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	d1.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mode_box.add_child(d1)
+	var lv := _btn("NIVELES", C_CORAL, 34, 380, 84)
+	lv.pressed.connect(func(): open_page("levels"))
+	_center(mode_box, lv)
+	var d2 := _lbl("%d niveles en 6 mundos. Llega a la meta y gana estrellas.   Completados: %d/%d  ·  Estrellas: %d" % [GameState.MAX_LEVEL, GameState.levels_done(), GameState.MAX_LEVEL, GameState.total_stars()], 17, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	d2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mode_box.add_child(d2)
+	var d3 := _lbl("Cada carrera gasta 1 vida.", 16, C_SUN, HORIZONTAL_ALIGNMENT_CENTER)
+	mode_box.add_child(d3)
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	mode_box.add_child(sp)
+	_back_row(mode_box)
+
+
+func _refresh_levels() -> void:
+	_clear(levels_box)
+	levels_box.add_child(_lbl("NIVELES", 36, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 8)
+	sc.add_child(v)
+	for w in 6:
+		v.add_child(_lbl("Mundo %d · %s" % [w + 1, GameState.WORLD_NAMES[w]], 20, C_SUN))
+		var grid := GridContainer.new()
+		grid.columns = 5
+		grid.add_theme_constant_override("h_separation", 8)
+		grid.add_theme_constant_override("v_separation", 8)
+		for k in 5:
+			var n := w * 5 + k + 1
+			var unlocked := GameState.level_unlocked(n)
+			var stars := GameState.level_stars(n)
+			var col := Color("475569")
+			if unlocked:
+				col = Color("22c55e") if stars > 0 else C_TEAL
+			var b := _btn(str(n), col, 26, 78, 76)
+			b.disabled = not unlocked
+			b.pressed.connect(func(): mode_start.emit("level", n))
+			grid.add_child(b)
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 0)
+			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			for s in 3:
+				row.add_child(_icon("star", 20.0, Color("fde047"), s < stars))
+			b.add_child(row)
+			_place(row, 9, 52, 60, 20)
+		v.add_child(grid)
+	levels_box.add_child(sc)
+	_back_row(levels_box, "mode")
+
+
+func _refresh_lives_page() -> void:
+	if lives_box == null:
+		return
+	_clear(lives_box)
+	lives_box.add_child(_lbl("¡SIN VIDAS!", 40, C_CORAL, HORIZONTAL_ALIGNMENT_CENTER))
+	var hh := HBoxContainer.new()
+	hh.alignment = BoxContainer.ALIGNMENT_CENTER
+	var hs := HBoxContainer.new()
+	hs.add_theme_constant_override("separation", 6)
+	_hearts(hs, 44.0)
+	hh.add_child(hs)
+	lives_box.add_child(hh)
+	lives_box.add_child(_lbl(_lives_text(), 22, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var d := _lbl("Las vidas se recargan solas con el tiempo, o puedes comprar una con monedas.", 17, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lives_box.add_child(d)
+	var buy := _btn("COMPRAR VIDA  ● %d" % GameState.LIFE_COST, C_CORAL, 24, 330, 66)
+	buy.disabled = GameState.lives() >= GameState.MAX_LIVES or int(GameState.data.coins) < GameState.LIFE_COST
+	buy.pressed.connect(func():
+		if GameState.buy_life():
+			Sfx.play("buy")
+		_refresh_lives_page())
+	_center(lives_box, buy)
+	lives_box.add_child(_lbl("Tus monedas: ● %d" % int(GameState.data.coins), 18, C_SUN, HORIZONTAL_ALIGNMENT_CENTER))
+	var back := _btn("VOLVER", Color("3b82f6"), 24, 200, 56)
+	back.pressed.connect(close_page)
+	_center(lives_box, back)
+
+
+# ---------- HUD de carrera: arma y progreso ----------
+func set_weapon(kind: String, ammo: int) -> void:
+	if kind == "" or ammo <= 0:
+		fire_btn.visible = false
+		return
+	var names := {"coco": "COCO", "boom": "BUMERÁN", "bomb": "BOMBA"}
+	fire_btn.text = "%s\n%d" % [names.get(kind, kind), ammo]
+	fire_btn.visible = true
+
+
+func set_level_mode(on: bool) -> void:
+	level_bar.visible = on
+	level_bar.value = 0
+
+
+func set_progress(ratio: float) -> void:
+	level_bar.max_value = 1.0
+	level_bar.value = clampf(ratio, 0.0, 1.0)
+
+
+# ---------- Pausa ----------
+func _build_pause() -> void:
+	var p := _page("pause")
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.05, 0.1, 0.6)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	p.add_child(dim)
+	var box := _panel(p, Rect2(60, (H - 470) * 0.5, W - 120, 470), C_PANEL)
+	box.add_child(_lbl("PAUSA", 50, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var r := _btn("CONTINUAR", C_TEAL, 28, 320, 72)
+	r.pressed.connect(func(): resume_pressed.emit())
+	var rs := _btn("REINICIAR CARRERA", Color("f59e0b"), 22, 320, 66)
+	rs.pressed.connect(func(): restart_pressed.emit())
+	var m := _btn("SALIR AL MENÚ", C_CORAL, 24, 320, 66)
+	m.pressed.connect(func(): menu_pressed.emit())
+	for b in [r, rs, m]:
+		_center(box, b)
+
+
+# ---------- Fin de carrera / victoria ----------
+func show_over(run: Dictionary, msgs: Array, new_best: bool, win: Dictionary = {}) -> void:
 	_clear(over_box)
-	over_box.add_child(_lbl("¡FIN DE LA CARRERA!", 36, C_CORAL, HORIZONTAL_ALIGNMENT_CENTER))
-	over_box.add_child(_lbl("%d" % int(run.score), 70, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var is_win := not win.is_empty()
+	if is_win:
+		over_box.add_child(_lbl("¡NIVEL %d COMPLETADO!" % int(win.n), 32, C_GREEN, HORIZONTAL_ALIGNMENT_CENTER))
+		var sr := HBoxContainer.new()
+		sr.alignment = BoxContainer.ALIGNMENT_CENTER
+		sr.add_theme_constant_override("separation", 6)
+		for s in 3:
+			sr.add_child(_icon("star", 64.0, Color("fde047"), s < int(win.stars)))
+		over_box.add_child(sr)
+	else:
+		over_box.add_child(_lbl("¡FIN DE LA CARRERA!", 36, C_CORAL, HORIZONTAL_ALIGNMENT_CENTER))
+	over_box.add_child(_lbl("%d" % int(run.score), 64, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
 	over_box.add_child(_lbl("PUNTOS" + ("   ·   ¡NUEVO RÉCORD!" if new_best else ""), 20, C_SUN, HORIZONTAL_ALIGNMENT_CENTER))
-	over_box.add_child(_lbl("● %d monedas    ·    %d m" % [int(run.coins), int(run.dist)], 24, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	over_box.add_child(_lbl("● %d monedas   ·   %d m   ·   %d rotos" % [int(run.coins), int(run.dist), int(run.get("destroyed", 0))], 20, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
 	over_box.add_child(_lbl("Total: ● %d    ·    Récord: %d" % [int(GameState.data.coins), int(GameState.data.best)], 18, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER))
+	var hh := HBoxContainer.new()
+	hh.alignment = BoxContainer.ALIGNMENT_CENTER
+	var hs := HBoxContainer.new()
+	hs.add_theme_constant_override("separation", 4)
+	_hearts(hs, 26.0)
+	hh.add_child(hs)
+	over_box.add_child(hh)
+	over_box.add_child(_lbl(_lives_text(), 15, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER))
 	var sc := ScrollContainer.new()
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -635,37 +965,14 @@ func show_over(run: Dictionary, msgs: Array, new_best: bool) -> void:
 		l.custom_minimum_size = Vector2(430, 0)
 		v.add_child(l)
 	over_box.add_child(sc)
-	var again := _btn("JUGAR DE NUEVO", C_TEAL, 28, 340, 70)
+	if is_win and int(win.n) < GameState.MAX_LEVEL:
+		var nx := _btn("SIGUIENTE NIVEL", C_TEAL, 26, 340, 68)
+		nx.pressed.connect(func(): mode_start.emit("level", int(win.n) + 1))
+		_center(over_box, nx)
+	var again := _btn(("REPETIR NIVEL" if is_win else ("REINTENTAR" if int(win.get("n", 0)) > 0 or bool(run.get("is_level", false)) else "JUGAR DE NUEVO")), C_TEAL if not is_win else Color("f59e0b"), 24, 340, 62)
 	again.pressed.connect(func(): retry_pressed.emit())
-	var menu := _btn("MENÚ", Color("3b82f6"), 24, 340, 58)
+	_center(over_box, again)
+	var menu := _btn("MENÚ", Color("3b82f6"), 22, 340, 54)
 	menu.pressed.connect(func(): menu_pressed.emit())
-	for b in [again, menu]:
-		var hb := HBoxContainer.new()
-		hb.alignment = BoxContainer.ALIGNMENT_CENTER
-		hb.add_child(b)
-		over_box.add_child(hb)
+	_center(over_box, menu)
 	_show("over")
-
-
-# ---------- Pausa ----------
-func _build_pause() -> void:
-	var p := _page("pause")
-	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.05, 0.1, 0.6)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	p.add_child(dim)
-	var box := _panel(p, Rect2(70, 300, W - 140, 340), C_PANEL)
-	box.add_child(_lbl("PAUSA", 50, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
-	var r := _btn("CONTINUAR", C_TEAL, 28, 300, 70)
-	r.pressed.connect(func(): resume_pressed.emit())
-	var m := _btn("SALIR AL MENÚ", C_CORAL, 24, 300, 62)
-	m.pressed.connect(func(): menu_pressed.emit())
-	for b in [r, m]:
-		var hb := HBoxContainer.new()
-		hb.alignment = BoxContainer.ALIGNMENT_CENTER
-		hb.add_child(b)
-		box.add_child(hb)
-
-
-func show_pause() -> void:
-	_show("pause")

@@ -156,6 +156,51 @@ func _costume_extra(extra: String, shirt: Color, b: Node3D) -> void:
 		"number":
 			Toon.part(b, Toon.box(Vector3(0.18, 0.22, 0.03)), Color("f8f9fa"), Vector3(0, 0.45, -0.265), Vector3.ZERO, false)
 			Toon.part(b, Toon.box(Vector3(0.06, 0.14, 0.035)), Color("1d4ed8"), Vector3(0, 0.45, -0.27), Vector3.ZERO, false)
+		"buttons":
+			for y in [0.25, 0.45, 0.65]:
+				Toon.part(b, Toon.sphere(0.04), Color("ffd60a"), Vector3(0, y, -0.265), Vector3.ZERO, false)
+			Toon.part(b, Toon.box(Vector3(0.5, 0.06, 0.3)), Color("ffd60a"), Vector3(0, 0.78, 0), Vector3.ZERO, false)
+		"spots":
+			for p in [Vector3(-0.12, 0.3, -0.24), Vector3(0.14, 0.5, -0.22), Vector3(-0.1, 0.62, -0.23), Vector3(0.15, 0.22, -0.22), Vector3(0, 0.42, -0.26)]:
+				Toon.part(b, Toon.sphere(0.055), Color("3b1d0a"), p, Vector3.ZERO, false)
+		"belt":
+			Toon.part(b, Toon.cyl(0.275, 0.275, 0.1), Color("5b3a1a"), Vector3(0, 0.12, 0), Vector3.ZERO, false)
+			Toon.part(b, Toon.box(Vector3(0.14, 0.12, 0.04)), Color("ffd60a"), Vector3(0, 0.12, -0.27), Vector3.ZERO, false)
+		"cross":
+			Toon.part(b, Toon.box(Vector3(0.22, 0.07, 0.03)), Color("f8f9fa"), Vector3(0, 0.5, -0.265), Vector3.ZERO, false)
+			Toon.part(b, Toon.box(Vector3(0.07, 0.22, 0.035)), Color("f8f9fa"), Vector3(0, 0.5, -0.265), Vector3.ZERO, false)
+		"collar":
+			Toon.part(b, Toon.cyl(0.29, 0.29, 0.08), Color("f8f9fa"), Vector3(0, 0.76, 0), Vector3.ZERO, false)
+			for y in [0.3, 0.5]:
+				Toon.part(b, Toon.sphere(0.04), Color("94a3b8"), Vector3(-0.07, y, -0.265), Vector3.ZERO, false)
+		"suit":
+			Toon.part(b, Toon.cyl(0.3, 0.3, 0.1), Color("94a3b8"), Vector3(0, 0.76, 0), Vector3.ZERO, false)
+			Toon.part(b, Toon.box(Vector3(0.28, 0.2, 0.04)), Color("1d4ed8"), Vector3(0, 0.45, -0.265), Vector3.ZERO, false)
+			Toon.part(b, Toon.sphere(0.04), Color("ef4444"), Vector3(-0.07, 0.45, -0.29), Vector3.ZERO, false)
+			Toon.part(b, Toon.sphere(0.04), Color("22c55e"), Vector3(0.07, 0.45, -0.29), Vector3.ZERO, false)
+		"poncho":
+			Toon.part(b, Toon.cyl(0.3, 0.46, 0.62), Color("dc2626"), Vector3(0, 0.4, 0))
+			Toon.part(b, Toon.cyl(0.34, 0.37, 0.05), Color("facc15"), Vector3(0, 0.2, 0), Vector3.ZERO, false)
+			Toon.part(b, Toon.cyl(0.31, 0.33, 0.05), Color("22c55e"), Vector3(0, 0.42, 0), Vector3.ZERO, false)
+		"emblem":
+			Toon.part(b, Toon.cyl(0.11, 0.11, 0.04), Color("fde047"), Vector3(0, 0.5, -0.265), Vector3(PI / 2, 0, 0), false)
+			Toon.part(b, Toon.sphere(0.05), Color("dc2626"), Vector3(0, 0.5, -0.29), Vector3.ZERO, false)
+		"neon":
+			Toon.glow(b, Toon.box(Vector3(0.06, 0.8, 0.02)), Color("22d3ee"), Vector3(-0.1, 0.4, -0.27))
+			Toon.glow(b, Toon.box(Vector3(0.06, 0.8, 0.02)), Color("f472b6"), Vector3(0.1, 0.4, -0.27))
+			Toon.glow(b, Toon.torus(0.255, 0.3), Color("22d3ee"), Vector3(0, 0.74, 0))
+		"hood":
+			Toon.part(b, Toon.cyl(0.3, 0.3, 0.12), Color("111827"), Vector3(0, 0.78, 0), Vector3.ZERO, false)
+			Toon.glow(b, Toon.box(Vector3(0.18, 0.04, 0.02)), Color("4ade80"), Vector3(0, 0.5, -0.265))
+		"robe":
+			Toon.part(b, Toon.cyl(0.3, 0.42, 0.55), Color("e7d9b4"), Vector3(0, 0.32, 0))
+			Toon.part(b, Toon.cyl(0.275, 0.275, 0.09), Color("78350f"), Vector3(0, 0.2, 0), Vector3.ZERO, false)
+		"armor":
+			Toon.part(b, Toon.cyl(0.28, 0.28, 0.5), Color("fbbf24"), Vector3(0, 0.45, 0), Vector3.ZERO, false)
+			Toon.glow(b, Toon.cyl(0.09, 0.09, 0.03), Color("7dd3fc"), Vector3(0, 0.5, -0.275), Vector3(PI / 2, 0, 0))
+		"bolt":
+			Toon.part(b, Toon.box(Vector3(0.1, 0.3, 0.03)), Color("fde047"), Vector3(0.02, 0.5, -0.27), Vector3(0, 0, 0.45), false)
+			Toon.part(b, Toon.box(Vector3(0.1, 0.22, 0.03)), Color("fde047"), Vector3(-0.04, 0.38, -0.27), Vector3(0, 0, -0.45), false)
 		"bowtie":
 			Toon.part(b, Toon.box(Vector3(0.1, 0.1, 0.04)), Color("e63946"), Vector3(-0.07, 0.74, -0.22), Vector3(0, 0, 0.5), false)
 			Toon.part(b, Toon.box(Vector3(0.1, 0.1, 0.04)), Color("e63946"), Vector3(0.07, 0.74, -0.22), Vector3(0, 0, -0.5), false)
@@ -187,6 +232,33 @@ func _head_acc(id: String) -> void:
 			Toon.part(head, Toon.cyl(0.18, 0.26, 0.32), Color("1f1f1f"), Vector3(0, 0.58, 0))
 			Toon.part(head, Toon.cyl(0.65, 0.65, 0.04), Color("1f1f1f"), Vector3(0, 0.42, 0))
 			Toon.part(head, Toon.cyl(0.265, 0.265, 0.06), Color("ffc233"), Vector3(0, 0.46, 0), Vector3.ZERO, false)
+		"chef":
+			Toon.part(head, Toon.cyl(0.2, 0.2, 0.3), Color("f8fafc"), Vector3(0, 0.6, 0))
+			Toon.part(head, Toon.sphere(0.27), Color("f8fafc"), Vector3(0, 0.78, 0))
+		"tophat":
+			Toon.part(head, Toon.cyl(0.2, 0.2, 0.42), Color("111827"), Vector3(0, 0.62, 0))
+			Toon.part(head, Toon.cyl(0.36, 0.36, 0.04), Color("111827"), Vector3(0, 0.42, 0))
+			Toon.part(head, Toon.cyl(0.205, 0.205, 0.08), Color("c026d3"), Vector3(0, 0.48, 0), Vector3.ZERO, false)
+		"headband":
+			Toon.part(head, Toon.cyl(0.262, 0.262, 0.07), Color("ef4444"), Vector3(0, 0.36, 0), Vector3.ZERO, false)
+			Toon.part(head, Toon.box(Vector3(0.1, 0.05, 0.2)), Color("ef4444"), Vector3(0.1, 0.34, 0.3), Vector3(0.3, 0, 0), false)
+		"helmet":
+			Toon.part(head, Toon.sphere(0.3, 0.48), Color("fbbf24"), Vector3(0, 0.36, 0))
+			Toon.part(head, Toon.box(Vector3(0.1, 0.14, 0.3)), Color("f59e0b"), Vector3(0, 0.56, -0.02), Vector3.ZERO, false)
+		"phones":
+			Toon.part(head, Toon.cyl(0.27, 0.27, 0.04), Color("1f2937"), Vector3(0, 0.46, 0), Vector3.ZERO, false)
+			Toon.part(head, Toon.cyl(0.1, 0.1, 0.08), Color("ec4899"), Vector3(-0.26, 0.22, 0), Vector3(0, 0, PI / 2))
+			Toon.part(head, Toon.cyl(0.1, 0.1, 0.08), Color("ec4899"), Vector3(0.26, 0.22, 0), Vector3(0, 0, PI / 2))
+		"visor":
+			Toon.glow(head, Toon.box(Vector3(0.5, 0.1, 0.06)), Color("22d3ee"), Vector3(0, 0.24, -0.23))
+			Toon.part(head, Toon.cyl(0.262, 0.262, 0.05), Color("1f2937"), Vector3(0, 0.32, 0), Vector3.ZERO, false)
+		"mask_h":
+			Toon.part(head, Toon.box(Vector3(0.48, 0.2, 0.06)), Color("1d4ed8"), Vector3(0, 0.24, -0.215))
+			Toon.part(head, Toon.box(Vector3(0.12, 0.07, 0.03)), Color("f8fafc"), Vector3(-0.1, 0.25, -0.26), Vector3(0, 0, 0.2), false)
+			Toon.part(head, Toon.box(Vector3(0.12, 0.07, 0.03)), Color("f8fafc"), Vector3(0.1, 0.25, -0.26), Vector3(0, 0, -0.2), false)
+		"spacehelm":
+			Toon.glow(head, Toon.sphere(0.36), Color("bae6fd"), Vector3(0, 0.22, 0), Vector3.ZERO, 0.32)
+			Toon.part(head, Toon.cyl(0.33, 0.33, 0.07), Color("e5e7eb"), Vector3(0, -0.04, 0), Vector3.ZERO, false)
 		"crown":
 			Toon.part(head, Toon.cyl(0.2, 0.24, 0.18), Color("ffc233"), Vector3(0, 0.5, 0))
 			for i in 5:
@@ -207,6 +279,14 @@ func _face_acc(id: String, hair: Color) -> void:
 			Toon.part(head, Toon.box(Vector3(0.46, 0.12, 0.04)), Color("8338ec"), Vector3(0, 0.23, -0.235))
 			Toon.part(head, Toon.sphere(0.04), Color("f8f9fa"), Vector3(-0.09, 0.23, -0.26), Vector3.ZERO, false)
 			Toon.part(head, Toon.sphere(0.04), Color("f8f9fa"), Vector3(0.09, 0.23, -0.26), Vector3.ZERO, false)
+		"nose":
+			Toon.part(head, Toon.sphere(0.07), Color("ef4444"), Vector3(0, 0.17, -0.27), Vector3.ZERO, false)
+		"beard":
+			Toon.part(head, Toon.sphere(0.2, 0.3), hair.darkened(0.1), Vector3(0, 0.05, -0.12))
+		"heart":
+			Toon.part(head, Toon.sphere(0.075), Color("f43f5e"), Vector3(-0.1, 0.23, -0.25), Vector3.ZERO, false)
+			Toon.part(head, Toon.sphere(0.075), Color("f43f5e"), Vector3(0.1, 0.23, -0.25), Vector3.ZERO, false)
+			Toon.part(head, Toon.box(Vector3(0.08, 0.02, 0.04)), Color("f43f5e"), Vector3(0, 0.25, -0.25), Vector3.ZERO, false)
 		"moustache":
 			Toon.part(head, Toon.capsule(0.035, 0.24), hair.darkened(0.2), Vector3(0, 0.145, -0.245), Vector3(0, 0, PI / 2), false)
 
@@ -219,6 +299,27 @@ func _back_acc(id: String) -> void:
 		"surfboard":
 			Toon.part(body, Toon.box(Vector3(0.3, 1.5, 0.06)), Color("ff6b6b"), Vector3(0.05, 0.38, 0.32), Vector3(0, 0, 0.2))
 			Toon.part(body, Toon.box(Vector3(0.08, 1.4, 0.065)), Color("f8f9fa"), Vector3(0.05, 0.38, 0.32), Vector3(0, 0, 0.2), false)
+		"guitar":
+			Toon.part(body, Toon.sphere(0.2, 0.34), Color("b45309"), Vector3(0.08, 0.2, 0.3), Vector3(0, 0, 0.5))
+			Toon.part(body, Toon.sphere(0.15, 0.26), Color("b45309"), Vector3(0.22, 0.46, 0.3), Vector3(0, 0, 0.5))
+			Toon.part(body, Toon.box(Vector3(0.06, 0.62, 0.05)), Color("3f2a14"), Vector3(0.36, 0.78, 0.3), Vector3(0, 0, 0.5))
+			Toon.part(body, Toon.sphere(0.05), Color("111827"), Vector3(0.1, 0.24, 0.5), Vector3.ZERO, false)
+		"parrot":
+			Toon.part(body, Toon.sphere(0.16, 0.3), Color("ef4444"), Vector3(0.3, 0.82, 0.05))
+			Toon.part(body, Toon.sphere(0.1), Color("22c55e"), Vector3(0.3, 1.0, -0.02))
+			Toon.part(body, Toon.box(Vector3(0.05, 0.05, 0.08)), Color("facc15"), Vector3(0.3, 0.99, -0.12), Vector3.ZERO, false)
+			Toon.part(body, Toon.box(Vector3(0.07, 0.3, 0.05)), Color("3b82f6"), Vector3(0.3, 0.6, 0.1), Vector3(0.3, 0, 0), false)
+		"jetpack":
+			for sx in [-0.12, 0.12]:
+				Toon.part(body, Toon.cyl(0.09, 0.09, 0.5), Color("94a3b8"), Vector3(sx, 0.42, 0.3))
+				Toon.glow(body, Toon.cyl(0.0, 0.07, 0.22), Color("fb923c"), Vector3(sx, 0.06, 0.3))
+		"saber":
+			Toon.part(body, Toon.cyl(0.03, 0.03, 0.2), Color("475569"), Vector3(-0.2, 0.3, 0.3), Vector3(0, 0, 0.4), false)
+			Toon.glow(body, Toon.cyl(0.025, 0.025, 1.0), Color("38bdf8"), Vector3(-0.38, 0.8, 0.3), Vector3(0, 0, 0.4))
+		"shield_h":
+			Toon.part(body, Toon.cyl(0.32, 0.32, 0.05), Color("1d4ed8"), Vector3(0, 0.42, 0.3), Vector3(PI / 2, 0, 0))
+			Toon.part(body, Toon.cyl(0.2, 0.2, 0.06), Color("dc2626"), Vector3(0, 0.42, 0.31), Vector3(PI / 2, 0, 0), false)
+			Toon.part(body, Toon.cyl(0.09, 0.09, 0.07), Color("f8fafc"), Vector3(0, 0.42, 0.32), Vector3(PI / 2, 0, 0), false)
 		"cape":
 			var p := _pivot(body, Vector3(0, 0.72, 0.24))
 			Toon.part(p, Toon.box(Vector3(0.56, 0.9, 0.04)), Color("e63946"), Vector3(0, -0.45, 0.02))
@@ -275,6 +376,35 @@ func die() -> void:
 	slide_t = 0.0
 
 
+var magnet_fx: Node3D
+var magnet_rings: Array = []
+var magnet_shoe: Node3D
+
+
+func set_magnet(on: bool) -> void:
+	if on and magnet_fx == null:
+		magnet_fx = Node3D.new()
+		add_child(magnet_fx)
+		magnet_shoe = Toon.horseshoe(magnet_fx, 2.0, Vector3(0, 2.7, 0))
+		for i in 2:
+			var r := Toon.glow(magnet_fx, Toon.torus(1.1, 1.2), Color("38bdf8"), Vector3(0, 0.95, 0), Vector3.ZERO, 0.45)
+			magnet_rings.append(r)
+	if magnet_fx:
+		magnet_fx.visible = on
+
+
+func _magnet_anim() -> void:
+	if magnet_fx == null or not magnet_fx.visible:
+		return
+	magnet_shoe.rotation.y = sin(t * 2.6) * 0.8
+	magnet_shoe.position.y = 2.7 + sin(t * 5.0) * 0.08
+	for i in magnet_rings.size():
+		var ph := fposmod(t * 1.1 + i * 0.5, 1.0)
+		var s := lerpf(2.6, 0.5, ph)
+		(magnet_rings[i] as Node3D).scale = Vector3(s, s, s)
+		((magnet_rings[i] as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.a = 0.0 + 0.5 * sin(ph * PI)
+
+
 func _ease(node: Node3D, axis: int, target: float, k: float) -> void:
 	if node == null:
 		return
@@ -290,6 +420,7 @@ func _ease(node: Node3D, axis: int, target: float, k: float) -> void:
 
 func step(delta: float, ground_h: float, speed: float) -> void:
 	t += delta
+	_magnet_anim()
 	var tx := (lane - 1) * LANE_W
 	var prev_x := position.x
 	position.x = lerpf(position.x, tx, 1.0 - exp(-15.0 * delta))

@@ -87,3 +87,57 @@ static func part(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3 = Vector
 		ol.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.add_child(ol)
 	return mi
+
+
+# ---------- Materiales brillantes (neón, láser, imán) ----------
+static var _glows: Dictionary = {}
+
+
+static func glow_mat(color: Color, alpha: float = 1.0) -> StandardMaterial3D:
+	var key := color.to_html() + str(alpha)
+	if not _glows.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = Color(color.r, color.g, color.b, alpha)
+		if alpha < 1.0:
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_glows[key] = m
+	return _glows[key]
+
+
+static func glow(parent: Node3D, mesh: Mesh, color: Color, pos: Vector3 = Vector3.ZERO, rot: Vector3 = Vector3.ZERO, alpha: float = 1.0) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = glow_mat(color, alpha)
+	mi.position = pos
+	mi.rotation = rot
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
+
+
+static func torus(inner: float, outer: float) -> TorusMesh:
+	var t := TorusMesh.new()
+	t.inner_radius = inner
+	t.outer_radius = outer
+	t.rings = 24
+	t.ring_segments = 8
+	return t
+
+
+## Imán de herradura de verdad: arco rojo con las puntas blancas.
+static func horseshoe(parent: Node3D, s: float = 1.0, pos: Vector3 = Vector3.ZERO) -> Node3D:
+	var n := Node3D.new()
+	n.position = pos
+	n.scale = Vector3.ONE * s
+	parent.add_child(n)
+	var r := 0.34
+	var steps := 8
+	for i in steps + 1:
+		var a := PI * float(i) / steps
+		part(n, box(Vector3(0.2, 0.2, 0.2)), Color("e11d2e"), Vector3(cos(a) * r, sin(a) * r, 0), Vector3(0, 0, a + PI / 2))
+	for sx in [-r, r]:
+		part(n, box(Vector3(0.2, 0.3, 0.2)), Color("e11d2e"), Vector3(sx, -0.15, 0))
+		part(n, box(Vector3(0.21, 0.12, 0.21)), Color("f1f5f9"), Vector3(sx, -0.36, 0))
+	return n

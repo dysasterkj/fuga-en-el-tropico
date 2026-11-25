@@ -21,6 +21,20 @@ const COSTUMES := [
 	{"id": "carnaval", "name": "Carnaval", "cost": 700, "desc": "Colores y fiesta.", "shirt": "ff006e", "pants": "8338ec", "extra": "sash"},
 	{"id": "futbolista", "name": "Futbolista", "cost": 500, "desc": "Camiseta número 10.", "shirt": "ffd60a", "pants": "1d4ed8", "extra": "number"},
 	{"id": "gala", "name": "De gala", "cost": 900, "desc": "Elegante hasta corriendo.", "shirt": "111827", "pants": "111827", "extra": "bowtie"},
+	{"id": "capitan", "name": "Capitán", "cost": 600, "desc": "Botones dorados y rumbo al mar.", "shirt": "1e3a8a", "pants": "f8fafc", "extra": "buttons"},
+	{"id": "jaguar", "name": "Jaguar", "cost": 650, "desc": "Manchas de la selva.", "shirt": "f59e0b", "pants": "78350f", "extra": "spots"},
+	{"id": "maya", "name": "Guerrero maya", "cost": 750, "desc": "Cinturón de jade y fuerza antigua.", "shirt": "0f766e", "pants": "b45309", "extra": "belt"},
+	{"id": "salvavidas", "name": "Salvavidas", "cost": 550, "desc": "Listo para rescatar en la playa.", "shirt": "e63946", "pants": "f8fafc", "extra": "cross"},
+	{"id": "chef", "name": "Chef", "cost": 500, "desc": "Cocina tropical a toda velocidad.", "shirt": "f8fafc", "pants": "374151", "extra": "collar"},
+	{"id": "astronauta", "name": "Astronauta", "cost": 1100, "desc": "Corre como en la luna.", "shirt": "e5e7eb", "pants": "cbd5e1", "extra": "suit"},
+	{"id": "poncho", "name": "Poncho", "cost": 600, "desc": "Colores de los Andes.", "shirt": "dc2626", "pants": "f1f5f9", "extra": "poncho"},
+	{"id": "heroe", "name": "Superhéroe", "cost": 1000, "desc": "Emblema en el pecho.", "shirt": "2563eb", "pants": "dc2626", "extra": "emblem"},
+	{"id": "neon", "name": "Corredor neón", "cost": 700, "desc": "Líneas de luz para la ciudad nocturna.", "shirt": "1e1b4b", "pants": "0f172a", "extra": "neon"},
+	{"id": "hacker", "name": "Ciberladrón", "cost": 800, "desc": "Capucha y visor verde.", "shirt": "111827", "pants": "1f2937", "extra": "hood"},
+	{"id": "caballero", "name": "Caballero estelar", "cost": 1200, "desc": "Túnica de las estrellas.", "shirt": "d6c7a1", "pants": "4b3a26", "extra": "robe"},
+	{"id": "piloto", "name": "Piloto galáctico", "cost": 900, "desc": "Traje naranja de la flota.", "shirt": "f97316", "pants": "f8fafc", "extra": "belt"},
+	{"id": "titan", "name": "Titán de acero", "cost": 1300, "desc": "Armadura roja y dorada.", "shirt": "b91c1c", "pants": "fbbf24", "extra": "armor"},
+	{"id": "velocista", "name": "Velocista", "cost": 1000, "desc": "Rayo en el pecho.", "shirt": "dc2626", "pants": "991b1b", "extra": "bolt"},
 ]
 
 const ACCESSORIES := {
@@ -33,6 +47,14 @@ const ACCESSORIES := {
 		{"id": "straw", "name": "Sombrero de paja", "cost": 150, "desc": "Fresco y clásico."},
 		{"id": "sombrero", "name": "Sombrero charro", "cost": 300, "desc": "Grande y con estilo."},
 		{"id": "crown", "name": "Corona", "cost": 800, "desc": "Para el rey de la carrera."},
+		{"id": "chef", "name": "Gorro de chef", "cost": 200, "desc": "Alta cocina."},
+		{"id": "tophat", "name": "Sombrero de copa", "cost": 350, "desc": "Elegancia total."},
+		{"id": "headband", "name": "Cinta", "cost": 100, "desc": "Estilo deportivo."},
+		{"id": "helmet", "name": "Casco", "cost": 400, "desc": "Protección de explorador."},
+		{"id": "phones", "name": "Audífonos", "cost": 250, "desc": "Música al correr."},
+		{"id": "visor", "name": "Visor neón", "cost": 300, "desc": "Brilla en la oscuridad."},
+		{"id": "mask_h", "name": "Máscara de héroe", "cost": 350, "desc": "Identidad secreta."},
+		{"id": "spacehelm", "name": "Casco espacial", "cost": 600, "desc": "Cúpula de cristal."},
 	],
 	"face": [
 		{"id": "none", "name": "Sin accesorio", "cost": 0, "desc": "Cara limpia."},
@@ -40,6 +62,9 @@ const ACCESSORIES := {
 		{"id": "sunglasses", "name": "Gafas de sol", "cost": 150, "desc": "Para el solazo."},
 		{"id": "eyepatch", "name": "Parche", "cost": 200, "desc": "Aire de capitán."},
 		{"id": "mask", "name": "Antifaz", "cost": 250, "desc": "Misterio y carnaval."},
+		{"id": "nose", "name": "Nariz de payaso", "cost": 100, "desc": "Para reír."},
+		{"id": "beard", "name": "Barba", "cost": 220, "desc": "Barba de lobo de mar."},
+		{"id": "heart", "name": "Gafas de corazón", "cost": 180, "desc": "Mira con amor."},
 	],
 	"back": [
 		{"id": "none", "name": "Sin espalda", "cost": 0, "desc": "Ligero como el viento."},
@@ -47,6 +72,11 @@ const ACCESSORIES := {
 		{"id": "surfboard", "name": "Tabla de surf", "cost": 300, "desc": "Siempre contigo."},
 		{"id": "cape", "name": "Capa", "cost": 450, "desc": "Ondea al correr."},
 		{"id": "wings", "name": "Alas", "cost": 600, "desc": "Alas de colores."},
+		{"id": "guitar", "name": "Guitarra", "cost": 350, "desc": "Ritmo en la espalda."},
+		{"id": "parrot", "name": "Loro", "cost": 500, "desc": "Un amigo con plumas."},
+		{"id": "jetpack", "name": "Cohete", "cost": 700, "desc": "Con llamitas."},
+		{"id": "saber", "name": "Espada láser", "cost": 650, "desc": "Zumbido de luz."},
+		{"id": "shield_h", "name": "Escudo heroico", "cost": 550, "desc": "Estrella al frente."},
 	],
 }
 
@@ -80,7 +110,7 @@ const ACHIEVEMENTS := [
 	{"id": "a9", "name": "Deslizador", "desc": "Deslízate 150 veces", "stat": "slides", "target": 150, "reward": 100},
 	{"id": "a10", "name": "Explorador", "desc": "Llega a la zona 2", "stat": "best_zone2", "target": 2, "reward": 120},
 	{"id": "a11", "name": "Aventurero", "desc": "Llega a la zona 3", "stat": "best_zone2", "target": 3, "reward": 250},
-	{"id": "a12", "name": "Maestro del trópico", "desc": "Llega a la zona 5", "stat": "best_zone2", "target": 5, "reward": 500},
+	{"id": "a12", "name": "Maestro del trópico", "desc": "Llega a la zona 6", "stat": "best_zone2", "target": 6, "reward": 500},
 	{"id": "a13", "name": "Intocable", "desc": "Corre 600 m sin tropezar", "stat": "max_clean", "target": 600, "reward": 150},
 	{"id": "a14", "name": "Imparable", "desc": "Corre 1.500 m sin tropezar", "stat": "max_clean", "target": 1500, "reward": 400},
 	{"id": "a15", "name": "Buen comienzo", "desc": "Consigue 1.000 puntos", "stat": "best", "target": 1000, "reward": 100},
@@ -89,6 +119,12 @@ const ACHIEVEMENTS := [
 	{"id": "a18", "name": "Amigo de la moda", "desc": "Compra 3 artículos", "stat": "items", "target": 3, "reward": 150},
 	{"id": "a19", "name": "Fashionista", "desc": "Compra 10 artículos", "stat": "items", "target": 10, "reward": 500},
 	{"id": "a20", "name": "Veterano", "desc": "Juega 25 carreras", "stat": "runs", "target": 25, "reward": 200},
+	{"id": "a21", "name": "Destructor", "desc": "Rompe 30 obstáculos con armas", "stat": "destroyed", "target": 30, "reward": 120},
+	{"id": "a22", "name": "Demoledor", "desc": "Rompe 250 obstáculos", "stat": "destroyed", "target": 250, "reward": 450},
+	{"id": "a23", "name": "Aventurero de niveles", "desc": "Completa 5 niveles", "stat": "levels_done", "target": 5, "reward": 200},
+	{"id": "a24", "name": "Conquistador", "desc": "Completa 20 niveles", "stat": "levels_done", "target": 20, "reward": 700},
+	{"id": "a25", "name": "Estrellado", "desc": "Consigue 30 estrellas", "stat": "stars", "target": 30, "reward": 500},
+	{"id": "a26", "name": "Viajero de mundos", "desc": "Llega a la zona 4", "stat": "best_zone2", "target": 4, "reward": 300},
 ]
 
 var data: Dictionary = {}
@@ -101,7 +137,7 @@ func _ready() -> void:
 func default_data() -> Dictionary:
 	return {
 		"coins": 0, "best": 0, "total_dist": 0, "total_coins": 0, "total_powerups": 0, "jumps": 0, "slides": 0, "runs": 0,
-		"best_zone": 0, "max_clean": 0,
+		"best_zone": 0, "max_clean": 0, "destroyed": 0, "lives": 5, "life_ts": 0, "levels": {}, "weapon_hint": false,
 		"owned": ["char:mateo"],
 		"equip": {"char": "mateo", "costume": "none", "head": "none", "face": "none", "back": "none"},
 		"multiplier": 1, "rm_level": 0, "rm": [], "daily": {}, "ach_done": [], "ach_claimed": [],
@@ -307,6 +343,7 @@ func finish_run(r: Dictionary) -> Array:
 	data.best = maxi(int(data.best), int(r.score))
 	data.best_zone = maxi(int(data.best_zone), int(r.zone))
 	data.max_clean = maxi(int(data.max_clean), int(r.clean_best))
+	data.destroyed = int(data.destroyed) + int(r.get("destroyed", 0))
 
 	_ensure_daily()
 	var d: Dictionary = data.daily
@@ -345,6 +382,9 @@ func get_stat(stat: String) -> int:
 		"best_zone2": return int(data.best_zone) + 1
 		"max_clean": return int(data.max_clean)
 		"items": return items_owned()
+		"destroyed": return int(data.destroyed)
+		"levels_done": return levels_done()
+		"stars": return total_stars()
 	return 0
 
 
@@ -382,3 +422,123 @@ func claim_all() -> int:
 	for a in ACHIEVEMENTS:
 		total += claim_ach(a.id)
 	return total
+
+
+# ---------- Vidas ----------
+const MAX_LIVES := 5
+const LIFE_SECONDS := 900
+const LIFE_COST := 60
+
+
+func lives_tick() -> void:
+	var l := int(data.lives)
+	if l >= MAX_LIVES:
+		data.lives = MAX_LIVES
+		data.life_ts = 0
+		return
+	var now := int(Time.get_unix_time_from_system())
+	if int(data.life_ts) <= 0 or int(data.life_ts) > now:
+		data.life_ts = now
+		return
+	var gained := (now - int(data.life_ts)) / LIFE_SECONDS
+	if gained > 0:
+		l = mini(MAX_LIVES, l + gained)
+		data.lives = l
+		data.life_ts = 0 if l >= MAX_LIVES else int(data.life_ts) + gained * LIFE_SECONDS
+		save_game()
+
+
+func lives() -> int:
+	lives_tick()
+	return int(data.lives)
+
+
+func life_seconds_left() -> int:
+	lives_tick()
+	if int(data.lives) >= MAX_LIVES:
+		return 0
+	return maxi(0, LIFE_SECONDS - (int(Time.get_unix_time_from_system()) - int(data.life_ts)))
+
+
+func use_life() -> bool:
+	lives_tick()
+	if int(data.lives) <= 0:
+		return false
+	data.lives = int(data.lives) - 1
+	if int(data.life_ts) <= 0:
+		data.life_ts = int(Time.get_unix_time_from_system())
+	save_game()
+	return true
+
+
+func add_life(n: int = 1) -> void:
+	data.lives = mini(MAX_LIVES, int(data.lives) + n)
+	if int(data.lives) >= MAX_LIVES:
+		data.life_ts = 0
+	save_game()
+
+
+func buy_life() -> bool:
+	lives_tick()
+	if int(data.lives) >= MAX_LIVES or int(data.coins) < LIFE_COST:
+		return false
+	data.coins = int(data.coins) - LIFE_COST
+	add_life(1)
+	return true
+
+
+# ---------- Niveles ----------
+const MAX_LEVEL := 30
+const WORLD_NAMES := ["Playa Dorada", "Selva Esmeralda", "Ciudad Colonial", "Ciudad Neón", "Galaxia Lejana", "Metrópolis Héroe"]
+
+
+func level_stars(n: int) -> int:
+	return int((data.levels as Dictionary).get(str(n), 0))
+
+
+func level_unlocked(n: int) -> bool:
+	return n <= 1 or level_stars(n - 1) > 0
+
+
+func levels_done() -> int:
+	var c := 0
+	for k in data.levels:
+		if int(data.levels[k]) > 0:
+			c += 1
+	return c
+
+
+func total_stars() -> int:
+	var c := 0
+	for k in data.levels:
+		c += int(data.levels[k])
+	return c
+
+
+func level_def(n: int) -> Dictionary:
+	return {
+		"n": n,
+		"biome": (n - 1) / 5,
+		"goal": 350.0 + n * 70.0,
+		"speed": minf(11.0 + n * 0.45, 24.0),
+		"gap": clampf(19.0 - n * 0.4, 8.0, 19.0),
+		"diff": n,
+		"coin_goal": 20 + n * 3,
+		"reward": 40 + n * 8,
+	}
+
+
+## Devuelve mensajes. stars: 1-3.
+func complete_level(n: int, stars: int) -> Array:
+	var msgs: Array = []
+	var old := level_stars(n)
+	var def := level_def(n)
+	var gain := int(def.reward)
+	if stars > old:
+		gain += (stars - old) * 20
+		data.levels[str(n)] = stars
+	data.coins = int(data.coins) + gain
+	msgs.append("¡Nivel %d completado! +%d monedas" % [n, gain])
+	msgs.append_array(check_achievements())
+	save_game()
+	return msgs

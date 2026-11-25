@@ -6,7 +6,7 @@ const PlayerScript = preload("res://scripts/player.gd")
 const HudScript = preload("res://scripts/hud.gd")
 const Toon = preload("res://scripts/toon.gd")
 
-enum State { MENU, PLAY, DEAD, PAUSE }
+enum State { MENU, PLAY, DEAD, PAUSE, WIN }
 
 const ZONE_LEN := 500.0
 
@@ -36,6 +36,18 @@ var mission_t := 0.0
 var swipe_start := Vector2.ZERO
 var swiping := false
 var anim_t := 0.0
+var mode := "endless"
+var level_no := 1
+var level_def: Dictionary = {}
+var last_mode := "endless"
+var last_level := 1
+var weapon := ""
+var ammo := 0
+var win_t := 0.0
+var win_shown := false
+var test_mode := ""
+var test_give := ""
+var test_level := 1
 
 # --- modo de pruebas (solo con argumentos de línea de comandos) ---
 var autoplay := false
@@ -56,6 +68,12 @@ func _ready() -> void:
 			shot_path = a.substr(7)
 		elif a.begins_with("--shotframe="):
 			shot_frame = int(a.substr(12))
+		elif a.begins_with("--give="):
+			test_give = a.substr(7)
+		elif a.begins_with("--mode="):
+			test_mode = a.substr(7)
+		elif a.begins_with("--lvl="):
+			test_level = int(a.substr(6))
 		elif a.begins_with("--page="):
 			test_page = a.substr(7)
 		elif a.begins_with("--look="):
@@ -87,8 +105,11 @@ func _ready() -> void:
 
 	hud = HudScript.new()
 	add_child(hud)
-	hud.play_pressed.connect(_start_game)
-	hud.retry_pressed.connect(_start_game)
+	hud.mode_start.connect(_begin)
+	hud.retry_pressed.connect(_retry)
+	hud.restart_pressed.connect(_restart)
+	hud.fire_pressed.connect(_fire)
+	world.destroyed.connect(_on_destroyed)
 	hud.menu_pressed.connect(_enter_menu)
 	hud.pause_pressed.connect(_toggle_pause)
 	hud.resume_pressed.connect(_toggle_pause)
@@ -102,6 +123,9 @@ func _ready() -> void:
 		Sfx.play("zone"))
 
 	_enter_menu()
+	if test_mode != "":
+		last_mode = test_mode
+		last_level = test_level
 	if test_page != "":
 		hud.open_page(test_page)
 	if not test_look.is_empty():
@@ -186,6 +210,13 @@ func _build_chaser() -> Node3D:
 
 # ---------- Estados ----------
 func _enter_menu() -> void:
+	world.set_endless()
+	mode = "endless"
+	player.set_magnet(false)
+	weapon = ""
+	ammo = 0
+	hud.set_weapon("", 0)
+	hud.set_level_mode(false)
 	state = State.MENU
 	player.reset()
 	player.set_look(GameState.look())
@@ -200,15 +231,54 @@ func _enter_menu() -> void:
 
 
 func _new_run() -> Dictionary:
-	return {"coins": 0, "jumps": 0, "slides": 0, "dist": 0.0, "powerups": 0, "zone": 0, "score": 0, "clean_best": 0.0}
+	return {"coins": 0, "jumps": 0, "slides": 0, "dist": 0.0, "powerups": 0, "zone": 0, "score": 0, "clean_best": 0.0, "destroyed": 0, "stumbles": 0, "is_level": false}
+
+
+## Empieza una partida en el modo indicado (gasta una vida).
+func _begin(m: String, n: int) -> void:
+	if GameState.lives() <= 0:
+		hud.open_page("lives")
+		return
+	last_mode = m
+	last_level = n
+	mode = m
+	level_no = n
+	_start_run(true)
 
 
 func _start_game() -> void:
+	_begin(last_mode, last_level)
+
+
+func _retry() -> void:
+	_begin(last_mode, last_level)
+
+
+func _restart() -> void:
+	if state == State.PAUSE:
+		_start_run(false)
+
+
+func _start_run(consume_life: bool) -> void:
+	if consume_life and not autoplay:
+		GameState.use_life()
+	if mode == "level":
+		level_def = GameState.level_def(level_no)
+		world.set_level(level_def)
+	else:
+		level_def = {}
+		world.set_endless()
 	state = State.PLAY
 	player.reset()
 	player.idle = false
+	player.set_magnet(false)
+	weapon = ""
+	ammo = 0
+	hud.set_weapon("", 0)
+	hud.set_level_mode(mode == "level")
 	world.reset()
 	run = _new_run()
+	run["is_level"] = mode == "level"
 	speed = 12.0
 	dist = 0.0
 	score = 0.0
@@ -224,12 +294,21 @@ func _start_game() -> void:
 	mission_t = 0.0
 	cam_mode = "play"
 	player.spin = false
-	Sfx.play_music(0)
+	Sfx.play_music(int(level_def.get("biome", 0)) % 3 if mode == "level" else 0)
 	Sfx.play("zone")
 	chaser.visible = false
 	world.advance(0.0, 0.0, 0.0, Vector3.ZERO, false)
 	hud.show_game()
-	hud.banner("¡ZONA 1 · %s!" % String(world.zone_name(0)).to_upper(), Color("ffc233"))
+	win_shown = false
+	if test_give == "magnet":
+		timers.magnet = 60.0
+		_give_weapon("boom", 5)
+	win_t = 0.0
+	if mode == "level":
+		hud.banner("NIVEL %d
+%s" % [level_no, String(world.zone_name(int(level_def.biome))).to_upper()], Color("ffc233"))
+	else:
+		hud.banner("¡ZONA 1 · %s!" % String(world.zone_name(0)).to_upper(), Color("ffc233"))
 
 
 func _toggle_pause() -> void:
@@ -256,6 +335,7 @@ func _input(event: InputEvent) -> void:
 					_cmd_jump()
 			KEY_DOWN, KEY_S: _cmd_slide()
 			KEY_ESCAPE, KEY_P: _toggle_pause()
+			KEY_F, KEY_E: _fire()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		swiping = event.pressed
 		swipe_start = event.position
@@ -298,7 +378,10 @@ func _process(delta: float) -> void:
 		State.PLAY:
 			if autoplay:
 				_bot(delta)
+				_bot_fire()
 			_play(minf(delta, 0.05))
+		State.WIN:
+			_win_step(delta)
 		State.DEAD:
 			_dead(delta)
 	_animate_chaser(delta)
@@ -326,6 +409,8 @@ func _play(delta: float) -> void:
 	invuln_t = maxf(0.0, invuln_t - delta)
 
 	var target := 12.0 + minf(dist * 0.0035, 16.0)
+	if mode == "level":
+		target = float(level_def.speed) + minf(dist * 0.002, 3.0)
 	if stumble_t > 0.0:
 		target *= 0.85
 	if timers.fly > 0.0:
@@ -360,7 +445,7 @@ func _play(delta: float) -> void:
 	for k in res.picks:
 		_activate(String(k))
 
-	var new_zone := int(dist / ZONE_LEN)
+	var new_zone := int(dist / ZONE_LEN) if mode == "endless" else 0
 	if new_zone > zone:
 		zone = new_zone
 		run["zone"] = zone
@@ -370,6 +455,13 @@ func _play(delta: float) -> void:
 		hud.banner("¡ZONA %d · %s!\n¡MÁS DIFÍCIL!" % [zone + 1, String(world.zone_name(zone)).to_upper()], Color("ff7b54"))
 
 	player.visible = invuln_t <= 0.0 or int(invuln_t * 14.0) % 2 == 0
+	player.set_magnet(timers.magnet > 0.0)
+	hud.set_weapon(weapon, ammo)
+	if mode == "level":
+		hud.set_progress(dist / float(level_def.goal))
+		if dist >= float(level_def.goal):
+			_level_complete()
+			return
 
 	mission_t -= delta
 	if mission_t <= 0.0:
@@ -404,6 +496,16 @@ func _activate(kind: String) -> void:
 		"x2":
 			timers.x2 = 10.0
 			hud.toast("¡Puntos dobles!")
+		"life":
+			if GameState.lives() < GameState.MAX_LIVES:
+				GameState.add_life(1)
+				hud.toast("¡+1 VIDA!")
+			else:
+				run["coins"] = int(run.coins) + 25
+				hud.toast("Vidas llenas: +25 monedas")
+		"w_coco": _give_weapon("coco", 6)
+		"w_boom": _give_weapon("boom", 4)
+		"w_bomb": _give_weapon("bomb", 2)
 		"fly":
 			timers.fly = 5.0
 			player.set_flying(true)
@@ -428,6 +530,7 @@ func _on_hit(e: Dictionary) -> void:
 		_game_over()
 		return
 	stumble_t = 7.0
+	run["stumbles"] = int(run.stumbles) + 1
 	invuln_t = 1.6
 	clean_dist = 0.0
 	Sfx.play("hit")
@@ -523,3 +626,82 @@ func _bot(delta: float) -> void:
 			match e.kind:
 				"low": player.jump()
 				"beam": player.slide()
+
+
+# ---------- Armas ----------
+func _give_weapon(kind: String, n: int) -> void:
+	if weapon == kind:
+		ammo += n
+	else:
+		weapon = kind
+		ammo = n
+	var names := {"coco": "¡Cocos! Toca el botón para lanzar", "boom": "¡Bumerán! Atraviesa varios obstáculos", "bomb": "¡Bomba! Revienta todo a su alrededor"}
+	hud.toast(String(names[kind]))
+
+
+func _fire() -> void:
+	if state != State.PLAY or ammo <= 0 or weapon == "":
+		return
+	world.fire(weapon, player.position.x)
+	ammo -= 1
+	if ammo <= 0:
+		weapon = ""
+	hud.set_weapon(weapon, ammo)
+
+
+func _on_destroyed(n: int) -> void:
+	run["destroyed"] = int(run.destroyed) + n
+	score += 20.0 * n
+	Sfx.play("hit", 1.5 + randf() * 0.2, -7.0)
+
+
+# ---------- Victoria de nivel ----------
+func _level_complete() -> void:
+	state = State.WIN
+	win_t = 0.0
+	win_shown = false
+	if test_give == "magnet":
+		timers.magnet = 60.0
+		_give_weapon("boom", 5)
+	Sfx.play("win")
+	Sfx.play("zone")
+	hud.banner("¡META!", Color("4ade80"))
+
+
+func _win_step(delta: float) -> void:
+	win_t += delta
+	speed = move_toward(speed, 0.0, 16.0 * delta)
+	dist += speed * delta
+	world.advance(delta, speed, dist, player.position, false)
+	player.step(delta, world.ground_height(player.position.x), speed)
+	chaser.visible = false
+	if win_t > 1.3 and not win_shown:
+		win_shown = true
+		if autoplay:
+			print("[test] LEVEL COMPLETE n=%d dist=%d coins=%d destroyed=%d stumbles=%d" % [level_no, int(dist), int(run.coins), int(run.destroyed), int(run.stumbles)])
+		player.idle = true
+		run["dist"] = dist
+		run["score"] = int(score)
+		var stars := 1
+		if int(run.stumbles) == 0:
+			stars += 1
+		if int(run.coins) >= int(level_def.coin_goal):
+			stars += 1
+		var new_best := int(run.score) > int(GameState.data.best)
+		var msgs: Array = GameState.check_run_missions(run)
+		msgs.append_array(GameState.finish_run(run))
+		msgs.append_array(GameState.complete_level(level_no, stars))
+		msgs.append("Estrellas: 1 por llegar, 1 por no tropezar, 1 por %d monedas." % int(level_def.coin_goal))
+		hud.show_over(run, msgs, new_best, {"n": level_no, "stars": stars})
+
+
+func _bot_fire() -> void:
+	if ammo <= 0 or state != State.PLAY:
+		return
+	for e in world.ents:
+		if e.kind == "plat":
+			continue
+		var z: float = e.node.position.z
+		if z < -8.0 and z > -30.0 and e.lanes.has(player.lane):
+			_fire()
+			return
