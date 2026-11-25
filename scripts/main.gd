@@ -44,6 +44,10 @@ var last_level := 1
 var weapon := ""
 var ammo := 0
 var win_t := 0.0
+var punch_cd := 0.0
+var power_cd := 0.0
+var power_id := ""
+var boost_t := 0.0
 var win_shown := false
 var test_mode := ""
 var test_give := ""
@@ -109,8 +113,10 @@ func _ready() -> void:
 	hud.retry_pressed.connect(_retry)
 	hud.restart_pressed.connect(_restart)
 	hud.fire_pressed.connect(_fire)
+	hud.power_pressed.connect(_use_power)
 	world.destroyed.connect(_on_destroyed)
-	hud.menu_pressed.connect(_enter_menu)
+	world.enemy_down.connect(_on_enemy_down)
+	hud.menu_pressed.connect(_exit_to_menu)
 	hud.pause_pressed.connect(_toggle_pause)
 	hud.resume_pressed.connect(_toggle_pause)
 	hud.look_preview.connect(func(l): player.set_look(l))
@@ -130,6 +136,7 @@ func _ready() -> void:
 		hud.open_page(test_page)
 	if not test_look.is_empty():
 		player.set_look(GameState.look(test_look))
+	_cleanup_update_file()
 	_check_update()
 
 
@@ -170,13 +177,9 @@ func _check_update() -> void:
 		for a in json.get("assets", []):
 			if String(a.get("name", "")).ends_with(".apk"):
 				update_url = String(a.get("browser_download_url", update_url))
-		hud.set_update(tag))
+		hud.set_update(tag, String(json.get("body", ""))))
 	http.request("https://api.github.com/repos/%s/releases/latest" % REPO, ["User-Agent: fuga-en-el-tropico"])
 
-
-func _open_update() -> void:
-	if update_url != "":
-		OS.shell_open(update_url)
 
 
 # ---------- Perseguidor ----------
@@ -215,13 +218,14 @@ func _enter_menu() -> void:
 	player.set_magnet(false)
 	weapon = ""
 	ammo = 0
-	hud.set_weapon("", 0)
+	hud.set_weapon("", 0, 0.0)
 	hud.set_level_mode(false)
 	state = State.MENU
 	player.reset()
 	player.set_look(GameState.look())
 	player.idle = true
 	Sfx.play_music(3)
+	world.plevel = GameState.player_level()
 	world.reset()
 	world.advance(0.0, 0.0, 0.0, Vector3.ZERO, false)
 	chaser.visible = false
@@ -231,7 +235,7 @@ func _enter_menu() -> void:
 
 
 func _new_run() -> Dictionary:
-	return {"coins": 0, "jumps": 0, "slides": 0, "dist": 0.0, "powerups": 0, "zone": 0, "score": 0, "clean_best": 0.0, "destroyed": 0, "stumbles": 0, "is_level": false}
+	return {"coins": 0, "jumps": 0, "slides": 0, "dist": 0.0, "powerups": 0, "zone": 0, "score": 0, "clean_best": 0.0, "destroyed": 0, "enemies": 0, "stumbles": 0, "is_level": false}
 
 
 ## Empieza una partida en el modo indicado (gasta una vida).
@@ -251,7 +255,7 @@ func _start_game() -> void:
 
 
 func _retry() -> void:
-	_begin(last_mode, last_level)
+	hud.open_prep(last_mode, last_level)
 
 
 func _restart() -> void:
@@ -260,8 +264,6 @@ func _restart() -> void:
 
 
 func _start_run(consume_life: bool) -> void:
-	if consume_life and not autoplay:
-		GameState.use_life()
 	if mode == "level":
 		level_def = GameState.level_def(level_no)
 		world.set_level(level_def)
@@ -274,8 +276,9 @@ func _start_run(consume_life: bool) -> void:
 	player.set_magnet(false)
 	weapon = ""
 	ammo = 0
-	hud.set_weapon("", 0)
+	hud.set_weapon("", 0, 0.0)
 	hud.set_level_mode(mode == "level")
+	world.plevel = GameState.player_level()
 	world.reset()
 	run = _new_run()
 	run["is_level"] = mode == "level"
@@ -300,6 +303,11 @@ func _start_run(consume_life: bool) -> void:
 	world.advance(0.0, 0.0, 0.0, Vector3.ZERO, false)
 	hud.show_game()
 	win_shown = false
+	power_id = GameState.power_of(GameState.equipped("costume"))
+	power_cd = 3.0
+	punch_cd = 0.0
+	boost_t = 0.0
+	_apply_boosts()
 	if test_give == "magnet":
 		timers.magnet = 60.0
 		_give_weapon("boom", 5)
@@ -336,6 +344,7 @@ func _input(event: InputEvent) -> void:
 			KEY_DOWN, KEY_S: _cmd_slide()
 			KEY_ESCAPE, KEY_P: _toggle_pause()
 			KEY_F, KEY_E: _fire()
+			KEY_Q, KEY_R: _use_power()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		swiping = event.pressed
 		swipe_start = event.position
@@ -406,6 +415,9 @@ func _play(delta: float) -> void:
 			player.set_flying(false)
 			invuln_t = 1.6
 	stumble_t = maxf(0.0, stumble_t - delta)
+	punch_cd = maxf(0.0, punch_cd - delta)
+	power_cd = maxf(0.0, power_cd - delta)
+	boost_t = maxf(0.0, boost_t - delta)
 	invuln_t = maxf(0.0, invuln_t - delta)
 
 	var target := 12.0 + minf(dist * 0.0035, 16.0)
@@ -413,6 +425,8 @@ func _play(delta: float) -> void:
 		target = float(level_def.speed) + minf(dist * 0.002, 3.0)
 	if stumble_t > 0.0:
 		target *= 0.85
+	if boost_t > 0.0:
+		target *= 1.35
 	if timers.fly > 0.0:
 		target *= 1.2
 	speed = move_toward(speed, target, 14.0 * delta)
@@ -456,7 +470,8 @@ func _play(delta: float) -> void:
 
 	player.visible = invuln_t <= 0.0 or int(invuln_t * 14.0) % 2 == 0
 	player.set_magnet(timers.magnet > 0.0)
-	hud.set_weapon(weapon, ammo)
+	hud.set_weapon(weapon, ammo, punch_cd)
+	hud.set_power(power_id, power_cd)
 	if mode == "level":
 		hud.set_progress(dist / float(level_def.goal))
 		if dist >= float(level_def.goal):
@@ -541,6 +556,8 @@ func _on_hit(e: Dictionary) -> void:
 
 
 func _game_over() -> void:
+	if not autoplay:
+		GameState.use_life()
 	state = State.DEAD
 	dead_t = 0.0
 	over_shown = false
@@ -639,16 +656,6 @@ func _give_weapon(kind: String, n: int) -> void:
 	hud.toast(String(names[kind]))
 
 
-func _fire() -> void:
-	if state != State.PLAY or ammo <= 0 or weapon == "":
-		return
-	world.fire(weapon, player.position.x)
-	ammo -= 1
-	if ammo <= 0:
-		weapon = ""
-	hud.set_weapon(weapon, ammo)
-
-
 func _on_destroyed(n: int) -> void:
 	run["destroyed"] = int(run.destroyed) + n
 	score += 20.0 * n
@@ -660,6 +667,11 @@ func _level_complete() -> void:
 	state = State.WIN
 	win_t = 0.0
 	win_shown = false
+	power_id = GameState.power_of(GameState.equipped("costume"))
+	power_cd = 3.0
+	punch_cd = 0.0
+	boost_t = 0.0
+	_apply_boosts()
 	if test_give == "magnet":
 		timers.magnet = 60.0
 		_give_weapon("boom", 5)
@@ -705,3 +717,181 @@ func _bot_fire() -> void:
 		if z < -8.0 and z > -30.0 and e.lanes.has(player.lane):
 			_fire()
 			return
+
+
+# ---------- Combate y poderes ----------
+func _fire() -> void:
+	if state != State.PLAY:
+		return
+	if ammo > 0 and weapon != "":
+		world.fire(weapon, player.position.x)
+		ammo -= 1
+		if ammo <= 0:
+			weapon = ""
+	elif punch_cd <= 0.0:
+		world.fire("punch", player.position.x)
+		punch_cd = 0.9
+	hud.set_weapon(weapon, ammo, punch_cd)
+
+
+func _power_cooldown() -> float:
+	return maxf(12.0, 26.0 - GameState.player_level() * 0.6)
+
+
+func _use_power() -> void:
+	if state != State.PLAY or power_id == "" or power_cd > 0.0:
+		return
+	power_cd = _power_cooldown()
+	Sfx.play("power")
+	match power_id:
+		"barrage":
+			for l in 3:
+				world.fire("coco", (l - 1) * world.LANE_W)
+		"dash":
+			invuln_t = maxf(invuln_t, 3.2)
+			boost_t = 3.2
+		"magnet":
+			timers.magnet = maxf(timers.magnet, 9.0)
+		"coins":
+			world.coin_rain()
+		"shield":
+			timers.shield = maxf(timers.shield, 8.0)
+		"x2":
+			timers.x2 = maxf(timers.x2, 10.0)
+		"blast":
+			world.blast(42.0)
+		"heal":
+			stumble_t = 0.0
+			invuln_t = maxf(invuln_t, 3.0)
+			chaser_z = 12.0
+	hud.toast("¡%s!" % String(GameState.POWERS[power_id].name))
+
+
+func _on_enemy_down() -> void:
+	run["enemies"] = int(run.enemies) + 1
+	score += 60.0
+	Sfx.play("win", 1.4, -8.0)
+
+
+func _apply_boosts() -> void:
+	for b in hud.chosen_boosts:
+		if not autoplay and not GameState.use_boost(String(b)):
+			continue
+		match String(b):
+			"magnet": timers.magnet = 12.0
+			"x2": timers.x2 = 15.0
+			"shield": timers.shield = 15.0
+			"weapon": _give_weapon("boom", 4)
+			"fly":
+				timers.fly = 6.0
+				player.set_flying(true)
+				world.spawn_sky_coins(speed * 6.0)
+	hud.chosen_boosts = []
+
+
+## Salir al menú: si abandonas una carrera en curso cuenta como perdida.
+func _exit_to_menu() -> void:
+	if state == State.PAUSE and not autoplay:
+		GameState.use_life()
+	_enter_menu()
+
+
+# ---------- Actualización dentro de la app (Android: DownloadManager + instalador) ----------
+var _dl_id := -1
+var _dl_timer: Timer
+var _dl_ticks := 0
+var _dl_dm
+var _dl_ctx
+
+
+func _android_ok() -> bool:
+	return OS.get_name() == "Android" and Engine.has_singleton("AndroidRuntime")
+
+
+func _update_apk_path() -> String:
+	var rt = Engine.get_singleton("AndroidRuntime")
+	var dir = rt.getApplicationContext().getExternalFilesDir(null)
+	if dir == null:
+		return ""
+	return String(dir.getAbsolutePath()) + "/update.apk"
+
+
+func _cleanup_update_file() -> void:
+	if not _android_ok():
+		return
+	var p := _update_apk_path()
+	if p != "" and FileAccess.file_exists(p):
+		DirAccess.remove_absolute(p)
+
+
+func _fallback_update() -> void:
+	_dl_id = -1
+	if _dl_timer:
+		_dl_timer.queue_free()
+		_dl_timer = null
+	hud.set_update_status("Abriendo descarga en el navegador…")
+	OS.shell_open(update_url)
+
+
+func _open_update() -> void:
+	if update_url == "":
+		return
+	if not _android_ok():
+		OS.shell_open(update_url)
+		return
+	if _dl_id >= 0:
+		return
+	var rt = Engine.get_singleton("AndroidRuntime")
+	_dl_ctx = rt.getApplicationContext()
+	_dl_dm = _dl_ctx.getSystemService("download") if _dl_ctx else null
+	if _dl_dm == null:
+		_fallback_update()
+		return
+	_cleanup_update_file()
+	var Uri = JavaClassWrapper.wrap("android.net.Uri")
+	var Req = JavaClassWrapper.wrap("android.app.DownloadManager$Request")
+	var req = Req.Request(Uri.parse(update_url)) if Req and Uri else null
+	if req == null:
+		_fallback_update()
+		return
+	req.setTitle("Fuga en el Trópico")
+	req.setDescription("Descargando actualización")
+	req.setNotificationVisibility(1)
+	req.setMimeType("application/vnd.android.package-archive")
+	req.setDestinationInExternalFilesDir(_dl_ctx, null, "update.apk")
+	_dl_id = int(_dl_dm.enqueue(req))
+	_dl_ticks = 0
+	hud.set_update_status("Descargando actualización…")
+	_dl_timer = Timer.new()
+	_dl_timer.wait_time = 1.0
+	add_child(_dl_timer)
+	_dl_timer.timeout.connect(_poll_download)
+	_dl_timer.start()
+
+
+func _poll_download() -> void:
+	_dl_ticks += 1
+	var uri = _dl_dm.getUriForDownloadedFile(_dl_id)
+	if uri != null:
+		_dl_timer.queue_free()
+		_dl_timer = null
+		_dl_id = -1
+		_install_uri(uri)
+		return
+	hud.set_update_status("Descargando actualización" + ".".repeat(_dl_ticks % 4))
+	if _dl_ticks > 300:
+		_fallback_update()
+
+
+func _install_uri(uri) -> void:
+	var rt = Engine.get_singleton("AndroidRuntime")
+	var activity = rt.getActivity()
+	var Intent = JavaClassWrapper.wrap("android.content.Intent")
+	var intent = Intent.Intent(Intent.ACTION_VIEW) if Intent else null
+	if intent == null or activity == null:
+		_fallback_update()
+		return
+	intent.setDataAndType(uri, "application/vnd.android.package-archive")
+	intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK)
+	activity.startActivity(intent)
+	hud.set_update_status("Listo: confirma la instalación")

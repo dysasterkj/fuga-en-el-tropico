@@ -370,7 +370,8 @@ func _refresh_toggles() -> void:
 	sfx_btn.text = "Sonidos: " + ("sí" if GameState.data.sfx else "no")
 
 
-func set_update(version: String) -> void:
+func set_update(version: String, notes: String = "") -> void:
+	show_update_popup(version, notes)
 	update_lbl.text = "Nueva versión %s disponible" % version
 	update_box.visible = true
 
@@ -415,7 +416,7 @@ func close_page() -> void:
 # ---------- Tienda ----------
 func _build_shop() -> void:
 	var p := _page("shop")
-	shop_box = _panel(p, Rect2(14, H - 442, W - 28, 428), C_PANEL)
+	shop_box = _panel(p, Rect2(14, H - 486, W - 28, 472), C_PANEL)
 	shop_coins = _lbl("", 28, C_SUN, HORIZONTAL_ALIGNMENT_RIGHT)
 	p.add_child(shop_coins)
 	_place(shop_coins, W - 224, 24, 200, 40)
@@ -469,13 +470,18 @@ func _refresh_shop(msg: String = "") -> void:
 	var d := _lbl(String(it.desc), 17, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	shop_box.add_child(d)
+	if tab == "costume":
+		var pwid := GameState.power_of(id)
+		var pwl := _lbl(("Poder: %s — %s" % [GameState.POWERS[pwid].name, GameState.POWERS[pwid].desc]) if pwid != "" else "Sin poder especial", 15, Color("c4b5fd"), HORIZONTAL_ALIGNMENT_CENTER)
+		pwl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		shop_box.add_child(pwl)
 	var status := ""
 	var col := C_MUTED
 	if GameState.owns(tab, id):
 		status = "Equipado" if GameState.equipped(tab) == id else "Ya es tuyo"
 		col = C_GREEN
 	else:
-		status = "Precio: ● %d" % int(it.cost)
+		status = "Precio: ● %d  ·  Nivel %d" % [int(it.cost), GameState.item_req(tab, id)]
 		col = C_SUN
 	if msg != "":
 		status = msg
@@ -501,6 +507,9 @@ func _refresh_shop(msg: String = "") -> void:
 				_refresh_shop())
 	else:
 		act = _btn("COMPRAR  ● %d" % int(it.cost), C_CORAL, 24, 250, 70)
+		act.disabled = not GameState.can_buy(tab, id)
+		if act.disabled:
+			act.text = "NIVEL %d" % GameState.item_req(tab, id)
 		act.pressed.connect(func():
 			var short := int(it.cost) - int(GameState.data.coins)
 			if short > 0:
@@ -744,10 +753,13 @@ func _build_extra() -> void:
 	d3.set_anchors_preset(Control.PRESET_FULL_RECT)
 	pv.add_child(d3)
 	lives_box = _panel(pv, Rect2(40, (H - 470) * 0.5, W - 80, 470), C_PANEL)
+	_build_extra2()
 	_build_pause()
 
 
 func _pre_open(id: String) -> void:
+	if id == "prep":
+		_refresh_prep()
 	match id:
 		"mode": _refresh_mode()
 		"levels": _refresh_levels()
@@ -765,6 +777,7 @@ func _extra_process(delta: float) -> void:
 
 
 func _refresh_lives_row() -> void:
+	_refresh_xp()
 	_hearts(lives_hearts, 28.0)
 	lives_timer_lbl.text = _lives_text()
 	lives_buy_btn.disabled = GameState.lives() >= GameState.MAX_LIVES or int(GameState.data.coins) < GameState.LIFE_COST
@@ -800,7 +813,7 @@ func _refresh_mode() -> void:
 	hh.add_child(hs)
 	mode_box.add_child(hh)
 	var endless := _btn("INFINITO", C_TEAL, 34, 380, 84)
-	endless.pressed.connect(func(): mode_start.emit("endless", 1))
+	endless.pressed.connect(func(): _goto_prep("endless", 1))
 	_center(mode_box, endless)
 	var d1 := _lbl("Corre sin parar. Cada 500 m cambia el mundo y todo se pone más difícil.   Récord: %d" % int(GameState.data.best), 17, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	d1.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -844,7 +857,7 @@ func _refresh_levels() -> void:
 				col = Color("22c55e") if stars > 0 else C_TEAL
 			var b := _btn(str(n), col, 26, 78, 76)
 			b.disabled = not unlocked
-			b.pressed.connect(func(): mode_start.emit("level", n))
+			b.pressed.connect(func(): _goto_prep("level", n))
 			grid.add_child(b)
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 0)
@@ -888,15 +901,6 @@ func _refresh_lives_page() -> void:
 
 
 # ---------- HUD de carrera: arma y progreso ----------
-func set_weapon(kind: String, ammo: int) -> void:
-	if kind == "" or ammo <= 0:
-		fire_btn.visible = false
-		return
-	var names := {"coco": "COCO", "boom": "BUMERÁN", "bomb": "BOMBA"}
-	fire_btn.text = "%s\n%d" % [names.get(kind, kind), ammo]
-	fire_btn.visible = true
-
-
 func set_level_mode(on: bool) -> void:
 	level_bar.visible = on
 	level_bar.value = 0
@@ -967,7 +971,7 @@ func show_over(run: Dictionary, msgs: Array, new_best: bool, win: Dictionary = {
 	over_box.add_child(sc)
 	if is_win and int(win.n) < GameState.MAX_LEVEL:
 		var nx := _btn("SIGUIENTE NIVEL", C_TEAL, 26, 340, 68)
-		nx.pressed.connect(func(): mode_start.emit("level", int(win.n) + 1))
+		nx.pressed.connect(func(): _goto_prep("level", int(win.n) + 1))
 		_center(over_box, nx)
 	var again := _btn(("REPETIR NIVEL" if is_win else ("REINTENTAR" if int(win.get("n", 0)) > 0 or bool(run.get("is_level", false)) else "JUGAR DE NUEVO")), C_TEAL if not is_win else Color("f59e0b"), 24, 340, 62)
 	again.pressed.connect(func(): retry_pressed.emit())
@@ -976,3 +980,184 @@ func show_over(run: Dictionary, msgs: Array, new_best: bool, win: Dictionary = {
 	menu.pressed.connect(func(): menu_pressed.emit())
 	_center(over_box, menu)
 	_show("over")
+
+
+# ======================= Preparación, poderes, XP y aviso de versión =======================
+signal power_pressed
+var chosen_boosts: Array = []
+var prep_box: VBoxContainer
+var prep_mode := "endless"
+var prep_level := 1
+var prep_sel: Dictionary = {}
+var power_btn: Button
+var xp_lbl: Label
+var xp_bar: ProgressBar
+var upd_box: VBoxContainer
+
+
+func _build_extra2() -> void:
+	var g: Control = pages["game"]
+	power_btn = _btn("", Color("8b5cf6"), 16, 112, 112)
+	for st in ["normal", "hover", "pressed"]:
+		power_btn.add_theme_stylebox_override(st, _sb(Color("8b5cf6") if st != "pressed" else Color("6d28d9"), 56, Color("ddd6fe"), 4))
+	g.add_child(power_btn)
+	_place(power_btn, 32, H - 270, 112, 112)
+	power_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	power_btn.pressed.connect(func(): power_pressed.emit())
+	power_btn.visible = false
+
+	var m: Control = pages["menu"]
+	xp_lbl = _lbl("", 18, Color("c4b5fd"), HORIZONTAL_ALIGNMENT_RIGHT)
+	m.add_child(xp_lbl)
+	_place(xp_lbl, W - 274, 266, 250, 26)
+	xp_bar = _bar(0, 100, Color("a78bfa"))
+	m.add_child(xp_bar)
+	_place(xp_bar, W - 244, 296, 220, 12)
+
+	var pp := _page("prep")
+	var d := ColorRect.new()
+	d.color = Color(0.02, 0.07, 0.12, 0.66)
+	d.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pp.add_child(d)
+	prep_box = _panel(pp, Rect2(16, 40, W - 32, H - 80), C_PANEL)
+
+	var pu := _page("update")
+	var d2 := ColorRect.new()
+	d2.color = Color(0.02, 0.07, 0.12, 0.7)
+	d2.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pu.add_child(d2)
+	upd_box = _panel(pu, Rect2(30, (H - 520) * 0.5, W - 60, 520), C_PANEL)
+
+
+func _refresh_xp() -> void:
+	var pr: Array = GameState.xp_progress()
+	xp_lbl.text = "Nivel %d  ·  %d/%d XP" % [GameState.player_level(), int(pr[0]), int(pr[1])]
+	xp_bar.max_value = float(pr[1])
+	xp_bar.value = float(pr[0])
+
+
+func open_prep(m: String, n: int) -> void:
+	prep_mode = m
+	prep_level = n
+	prep_sel = {}
+	for id in GameState.BOOSTS:
+		prep_sel[id] = GameState.boost_count(id) > 0
+	open_page("prep")
+
+
+func _refresh_prep() -> void:
+	_clear(prep_box)
+	prep_box.add_child(_lbl("PREPARA TU CARRERA", 32, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var sub := "Modo infinito" if prep_mode == "endless" else "Nivel %d · %s" % [prep_level, GameState.WORLD_NAMES[(prep_level - 1) / 5]]
+	prep_box.add_child(_lbl(sub + "      ● %d" % int(GameState.data.coins), 19, C_SUN, HORIZONTAL_ALIGNMENT_CENTER))
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 10)
+	sc.add_child(v)
+	for id in GameState.BOOSTS:
+		var b: Dictionary = GameState.BOOSTS[id]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var tv := VBoxContainer.new()
+		tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tv.add_child(_lbl("%s   x%d" % [b.name, GameState.boost_count(id)], 19, Color.WHITE))
+		var dl := _lbl(String(b.desc), 14, C_MUTED)
+		dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		dl.custom_minimum_size = Vector2(190, 0)
+		tv.add_child(dl)
+		row.add_child(tv)
+		var bid: String = id
+		var buy := _btn("+ ● %d" % int(b.cost), C_CORAL, 16, 92, 46)
+		buy.disabled = int(GameState.data.coins) < int(b.cost)
+		buy.pressed.connect(func():
+			if GameState.buy_boost(bid):
+				Sfx.play("buy")
+				prep_sel[bid] = true
+			_refresh_prep())
+		row.add_child(buy)
+		var have := GameState.boost_count(id) > 0
+		var on: bool = bool(prep_sel.get(id, false)) and have
+		var use := _btn("USAR" if on else "NO", C_TEAL if on else Color("475569"), 15, 66, 46)
+		use.disabled = not have
+		use.pressed.connect(func():
+			prep_sel[bid] = not bool(prep_sel.get(bid, false))
+			_refresh_prep())
+		row.add_child(use)
+		v.add_child(row)
+	var pw := GameState.power_of(GameState.equipped("costume"))
+	var pl := _lbl(("Poder del traje: %s — %s" % [GameState.POWERS[pw].name, GameState.POWERS[pw].desc]) if pw != "" else "Tu traje no tiene poder. ¡Compra uno en la tienda!", 15, Color("c4b5fd"))
+	pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pl.custom_minimum_size = Vector2(420, 0)
+	v.add_child(pl)
+	prep_box.add_child(sc)
+	var go := _btn("¡CORRER!", C_TEAL, 34, 360, 80)
+	go.pressed.connect(func():
+		chosen_boosts = []
+		for id in GameState.BOOSTS:
+			if bool(prep_sel.get(id, false)) and GameState.boost_count(id) > 0:
+				chosen_boosts.append(id)
+		emit_signal("mode_start", prep_mode, prep_level))
+	_center(prep_box, go)
+	var back := _btn("VOLVER", Color("3b82f6"), 22, 200, 52)
+	back.pressed.connect(close_page)
+	_center(prep_box, back)
+
+
+func set_weapon(kind: String, ammo: int, cd: float = 0.0) -> void:
+	fire_btn.visible = true
+	var names := {"coco": "COCO", "boom": "BUMERÁN", "bomb": "BOMBA"}
+	if ammo > 0 and kind != "":
+		fire_btn.text = "%s\n%d" % [names.get(kind, kind), ammo]
+		fire_btn.modulate.a = 1.0
+	else:
+		fire_btn.text = "GOLPE" if cd <= 0.0 else "GOLPE\n%.1f" % cd
+		fire_btn.modulate.a = 1.0 if cd <= 0.0 else 0.55
+
+
+func set_power(id: String, cd: float) -> void:
+	if id == "":
+		power_btn.visible = false
+		return
+	power_btn.visible = true
+	power_btn.text = "%s\n%s" % [String(GameState.POWERS[id].name).to_upper(), "LISTO" if cd <= 0.0 else "%ds" % int(ceil(cd))]
+	power_btn.modulate.a = 1.0 if cd <= 0.0 else 0.55
+
+
+func show_update_popup(version: String, notes: String) -> void:
+	_clear(upd_box)
+	upd_box.add_child(_lbl("¡NUEVA VERSIÓN!", 36, C_SUN, HORIZONTAL_ALIGNMENT_CENTER))
+	upd_box.add_child(_lbl("Ya está disponible %s" % version, 22, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var sc := ScrollContainer.new()
+	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var nl := _lbl(notes if notes != "" else "Mejoras y novedades.", 16, C_MUTED)
+	nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nl.custom_minimum_size = Vector2(400, 0)
+	sc.add_child(nl)
+	upd_box.add_child(sc)
+	upd_status = _lbl("", 17, C_GREEN, HORIZONTAL_ALIGNMENT_CENTER)
+	upd_box.add_child(upd_status)
+	var up := _btn("ACTUALIZAR AHORA", C_TEAL, 24, 340, 66)
+	up.pressed.connect(func(): update_pressed.emit())
+	_center(upd_box, up)
+	var later := _btn("MÁS TARDE", Color("475569"), 20, 340, 52)
+	later.pressed.connect(close_page)
+	_center(upd_box, later)
+	if pages["menu"].visible:
+		_show("update")
+
+
+var upd_status: Label
+
+
+func set_update_status(text: String) -> void:
+	update_lbl.text = text
+	if upd_status:
+		upd_status.text = text
+
+
+func _goto_prep(m: String, n: int) -> void:
+	open_prep(m, n)

@@ -570,6 +570,8 @@ func _spawn_pattern(z: float, sd: float) -> float:
 		return _spawn_event(z, biome)
 
 	var w := {"coins": 2.0, "low": 4.0, "beam": 3.0}
+	if eff_sd > 110.0:
+		w["enemy"] = 2.5 + level * 0.8
 	if eff_sd > 150.0:
 		w["plat"] = 1.5
 	if eff_sd > 300.0 or level >= 1:
@@ -589,10 +591,10 @@ func _spawn_pattern(z: float, sd: float) -> float:
 		"coins":
 			_coin_line(lane, z, 8)
 			if rng.randf() < 0.26:
-				var pw := {"magnet": 1.0, "shield": 1.0, "x2": 1.0, "fly": 0.8, "life": 0.5, "w_coco": 1.5}
-				if eff_sd > 250.0 or level >= 1:
+				var pw := {"magnet": 1.0, "shield": 1.0, "x2": 1.8, "fly": 0.8, "life": 0.5, "w_coco": 1.5}
+				if plevel >= 2 and (eff_sd > 150.0 or level >= 1):
 					pw["w_boom"] = 1.2
-				if level >= 1:
+				if plevel >= 4:
 					pw["w_bomb"] = 1.0
 				_add_pickup(_pick(pw), (lane + 1) % 3, z - 6.0)
 			return 18.0
@@ -632,6 +634,12 @@ func _spawn_pattern(z: float, sd: float) -> float:
 			var length := rng.randf_range(8.0, 13.0)
 			_add_platform(lane, z, length, biome)
 			return RAMP_LEN + length + 2.0
+		"enemy":
+			_add_enemy(lane, z, biome)
+			if level >= 1 and rng.randf() < 0.6:
+				_add_enemy((lane + 1 + rng.randi_range(0, 1)) % 3, z - 6.0, biome)
+			_coin_line((lane + 1) % 3, z + 2.0, 5)
+			return 10.0
 		"moving":
 			_add_ball(lane, z, biome, 6.0)
 			_coin_line((lane + 1) % 3, z + 2.0, 5)
@@ -775,10 +783,13 @@ func fire(kind: String, x: float) -> void:
 		"boom":
 			Toon.part(n, Toon.box(Vector3(0.95, 0.13, 0.22)), Color("fbbf24"), Vector3(-0.3, 0, 0), Vector3(0, 0.55, 0))
 			Toon.part(n, Toon.box(Vector3(0.95, 0.13, 0.22)), Color("f59e0b"), Vector3(0.3, 0, 0), Vector3(0, -0.55, 0))
+		"punch":
+			Toon.glow(n, Toon.sphere(0.34), Color("fde047"), Vector3.ZERO, Vector3.ZERO, 0.95)
+			Toon.glow(n, Toon.sphere(0.2), Color("ffffff"))
 		"bomb":
 			Toon.part(n, Toon.sphere(0.36), Color("1f2937"))
 			Toon.glow(n, Toon.sphere(0.12), Color("fb923c"), Vector3(0, 0.4, 0))
-	projs.append({"node": n, "kind": kind, "pierce": 3 if kind == "boom" else 1})
+	projs.append({"node": n, "kind": kind, "pierce": 3 if kind == "boom" else 1, "dmg": {"punch": 1, "coco": 2, "boom": 1, "bomb": 3}.get(kind, 1)})
 	Sfx.play("power", 1.6, -8.0)
 
 
@@ -818,7 +829,7 @@ func _explode(pos: Vector3) -> void:
 		if e.kind == "plat":
 			continue
 		if absf((e.node as Node3D).position.z - pos.z) < 7.0:
-			destroy_ent(e)
+			_kill_or_destroy(e)
 			cnt += 1
 	Sfx.play("hit", 1.3, -4.0)
 
@@ -841,15 +852,13 @@ func _update_projs(delta: float) -> void:
 				_explode(n.position)
 				dead = true
 				break
-			destroy_ent(e)
-			p["pierce"] = int(p.pierce) - 1
-			if int(p.pierce) <= 0:
+			if _proj_hit(p, e):
 				dead = true
 				break
 		if p.kind == "bomb" and n.position.z < -34.0 and not dead:
 			_explode(n.position)
 			dead = true
-		if dead or n.position.z < -80.0:
+		if dead or n.position.z < -80.0 or (p.kind == "punch" and n.position.z < -26.0):
 			n.queue_free()
 			projs.remove_at(i)
 
@@ -1100,3 +1109,118 @@ func _decor_hero(d: Node3D, side: float) -> void:
 		Toon.glow(d, Toon.cyl(0.1, 1.4, 40.0), Color("fef9c3"), sp + Vector3(0, 20, 0), Vector3(0, 0, -side * 0.12), 0.18)
 	if rng.randf() < 0.3:
 		_mountain(d, side, Color("64748b"), true)
+
+
+# ======================= Enemigos y combate =======================
+signal enemy_down
+var plevel := 1
+
+
+func _proj_hit(p: Dictionary, e: Dictionary) -> bool:
+	var n: Node3D = p.node
+	if e.has("enemy"):
+		e["hp"] = int(e.hp) - int(p.dmg)
+		if int(e.hp) <= 0:
+			_kill_enemy(e)
+		else:
+			_burst((e.node as Node3D).position + Vector3(0, 1.3, 0), Color("ffffff"), 4)
+			(e.node as Node3D).position.z -= 1.5
+	elif p.kind == "punch":
+		_burst(n.position, Color("fde047"), 4)
+		return true
+	else:
+		destroy_ent(e)
+	p["pierce"] = int(p.pierce) - 1
+	return int(p.pierce) <= 0
+
+
+func _kill_enemy(e: Dictionary) -> void:
+	var pos: Vector3 = (e.node as Node3D).position
+	_burst(pos + Vector3(0, 1.2, 0), Color("ef4444"), 12)
+	for i in 3:
+		_add_coin(pos.x, 1.0 + i * 0.3, pos.z + i * 0.8 - 0.8)
+	remove_entity(e)
+	enemy_down.emit()
+
+
+func _kill_or_destroy(e: Dictionary) -> void:
+	if e.has("enemy"):
+		_kill_enemy(e)
+	else:
+		destroy_ent(e)
+
+
+func _anim_legs(e: Dictionary) -> void:
+	var t := Time.get_ticks_msec() * 0.012
+	var legs: Array = e.legs
+	for i in legs.size():
+		(legs[i] as Node3D).rotation.x = sin(t + i * PI) * 0.9
+
+
+func blast(length: float) -> void:
+	var f := Node3D.new()
+	Toon.glow(f, Toon.sphere(1.0), Color("fde047"), Vector3.ZERO, Vector3.ZERO, 0.5)
+	f.position = Vector3(0, 1.2, -10.0)
+	add_child(f)
+	fx.append({"node": f, "vel": Vector3.ZERO, "life": 0.55, "grow": 30.0})
+	for e in ents.duplicate():
+		if e.kind == "plat":
+			continue
+		var z: float = (e.node as Node3D).position.z
+		if z > -length and z < 3.0:
+			_kill_or_destroy(e)
+	Sfx.play("hit", 0.8, -2.0)
+
+
+func coin_rain() -> void:
+	for lane in 3:
+		for i in 12:
+			_add_coin(_x(lane), 0.95, -14.0 - i * 2.0)
+
+
+func _add_enemy(lane: int, z: float, biome: int) -> void:
+	var zn: Dictionary = ZONES[biome]
+	var n := Node3D.new()
+	var skin: Color = [Color("c68642"), Color("e0ac69"), Color("8d5524")][rng.randi() % 3]
+	var cloth: Color = (zn.accent as Color).darkened(0.35)
+	if biome == 4:
+		skin = Color("86efac")
+		cloth = Color("7c3aed")
+	var legs: Array = []
+	for sx in [-0.18, 0.18]:
+		var pv := Node3D.new()
+		pv.position = Vector3(sx, 0.85, 0)
+		n.add_child(pv)
+		Toon.part(pv, Toon.capsule(0.13, 0.85), cloth.darkened(0.3), Vector3(0, -0.4, 0))
+		legs.append(pv)
+	Toon.part(n, Toon.capsule(0.32, 1.05), cloth, Vector3(0, 1.3, 0))
+	Toon.part(n, Toon.sphere(0.29), skin, Vector3(0, 2.05, 0))
+	Toon.part(n, Toon.box(Vector3(0.1, 0.05, 0.04)), Color("111111"), Vector3(-0.1, 2.12, -0.27), Vector3(0, 0, -0.35), false)
+	Toon.part(n, Toon.box(Vector3(0.1, 0.05, 0.04)), Color("111111"), Vector3(0.1, 2.12, -0.27), Vector3(0, 0, 0.35), false)
+	Toon.part(n, Toon.capsule(0.1, 0.75), skin, Vector3(-0.44, 1.4, -0.25), Vector3(-0.9, 0, 0))
+	Toon.part(n, Toon.capsule(0.1, 0.75), skin, Vector3(0.44, 1.4, -0.25), Vector3(-0.9, 0, 0))
+	match biome:
+		0:
+			Toon.part(n, Toon.cyl(0.3, 0.3, 0.1), Color("dc2626"), Vector3(0, 2.28, 0), Vector3.ZERO, false)
+		1:
+			Toon.part(n, Toon.box(Vector3(0.06, 0.4, 0.12)), Color("22c55e"), Vector3(0.12, 2.5, 0.05), Vector3(0, 0, -0.3))
+		2:
+			Toon.part(n, Toon.box(Vector3(0.5, 0.14, 0.06)), Color("111827"), Vector3(0, 2.1, -0.27), Vector3.ZERO, false)
+			Toon.part(n, Toon.cyl(0.4, 0.4, 0.04), Color("57534e"), Vector3(0, 2.3, 0))
+		3:
+			Toon.glow(n, Toon.box(Vector3(0.5, 0.1, 0.05)), Color("22d3ee"), Vector3(0, 2.1, -0.28))
+		4:
+			for sx in [-0.12, 0.12]:
+				Toon.part(n, Toon.cyl(0.015, 0.015, 0.35), Color("a3e635"), Vector3(sx, 2.45, 0), Vector3.ZERO, false)
+				Toon.glow(n, Toon.sphere(0.06), Color("f472b6"), Vector3(sx, 2.65, 0))
+		5:
+			Toon.part(n, Toon.box(Vector3(0.52, 0.2, 0.06)), Color("0f172a"), Vector3(0, 2.1, -0.26))
+	if biome >= 3:
+		Toon.glow(n, Toon.cyl(0.04, 0.04, 1.1), Color("ef4444"), Vector3(-0.44, 1.4, -0.65), Vector3(PI / 2, 0, 0))
+	else:
+		Toon.part(n, Toon.cyl(0.07, 0.09, 0.9), Color("6b4423"), Vector3(-0.44, 1.45, -0.6), Vector3(PI / 2, 0, 0), false)
+	n.rotation.y = PI
+	var e := _add_ent(n, "low", [lane], 0.5, z, 3.5, 2.4)
+	e["enemy"] = true
+	e["hp"] = 3 if level_mode and int(lvl.n) > 12 else 2
+	e["legs"] = legs

@@ -125,6 +125,10 @@ const ACHIEVEMENTS := [
 	{"id": "a24", "name": "Conquistador", "desc": "Completa 20 niveles", "stat": "levels_done", "target": 20, "reward": 700},
 	{"id": "a25", "name": "Estrellado", "desc": "Consigue 30 estrellas", "stat": "stars", "target": 30, "reward": 500},
 	{"id": "a26", "name": "Viajero de mundos", "desc": "Llega a la zona 4", "stat": "best_zone2", "target": 4, "reward": 300},
+	{"id": "a27", "name": "Luchador", "desc": "Derrota 25 enemigos", "stat": "enemies", "target": 25, "reward": 150},
+	{"id": "a28", "name": "Cazador de villanos", "desc": "Derrota 150 enemigos", "stat": "enemies", "target": 150, "reward": 500},
+	{"id": "a29", "name": "Veterano de guerra", "desc": "Llega al nivel de jugador 5", "stat": "plevel", "target": 5, "reward": 250},
+	{"id": "a30", "name": "Leyenda", "desc": "Llega al nivel de jugador 10", "stat": "plevel", "target": 10, "reward": 800},
 ]
 
 var data: Dictionary = {}
@@ -137,7 +141,7 @@ func _ready() -> void:
 func default_data() -> Dictionary:
 	return {
 		"coins": 0, "best": 0, "total_dist": 0, "total_coins": 0, "total_powerups": 0, "jumps": 0, "slides": 0, "runs": 0,
-		"best_zone": 0, "max_clean": 0, "destroyed": 0, "lives": 5, "life_ts": 0, "levels": {}, "weapon_hint": false,
+		"best_zone": 0, "max_clean": 0, "destroyed": 0, "enemies": 0, "xp": -1, "boosts": {}, "lives": 5, "life_ts": 0, "levels": {}, "weapon_hint": false,
 		"owned": ["char:mateo"],
 		"equip": {"char": "mateo", "costume": "none", "head": "none", "face": "none", "back": "none"},
 		"multiplier": 1, "rm_level": 0, "rm": [], "daily": {}, "ach_done": [], "ach_claimed": [],
@@ -196,6 +200,8 @@ func equipped(tab: String) -> String:
 
 
 func buy(tab: String, id: String) -> bool:
+	if not can_buy(tab, id):
+		return false
 	if owns(tab, id):
 		return false
 	var c := int(item_def(tab, id).cost)
@@ -344,6 +350,10 @@ func finish_run(r: Dictionary) -> Array:
 	data.best_zone = maxi(int(data.best_zone), int(r.zone))
 	data.max_clean = maxi(int(data.max_clean), int(r.clean_best))
 	data.destroyed = int(data.destroyed) + int(r.get("destroyed", 0))
+	data.enemies = int(data.enemies) + int(r.get("enemies", 0))
+	var gain := int(float(r.score) * 0.06) + int(r.coins) + int(r.get("enemies", 0)) * 6 + int(float(r.dist) / 20.0)
+	r["xp_gain"] = gain
+	msgs.append_array(add_xp(gain))
 
 	_ensure_daily()
 	var d: Dictionary = data.daily
@@ -383,6 +393,8 @@ func get_stat(stat: String) -> int:
 		"max_clean": return int(data.max_clean)
 		"items": return items_owned()
 		"destroyed": return int(data.destroyed)
+		"enemies": return int(data.enemies)
+		"plevel": return player_level()
 		"levels_done": return levels_done()
 		"stars": return total_stars()
 	return 0
@@ -539,6 +551,122 @@ func complete_level(n: int, stars: int) -> Array:
 		data.levels[str(n)] = stars
 	data.coins = int(data.coins) + gain
 	msgs.append("¡Nivel %d completado! +%d monedas" % [n, gain])
+	msgs.append_array(add_xp(30 + n * 3))
 	msgs.append_array(check_achievements())
 	save_game()
 	return msgs
+
+
+# ---------- Poderes de traje ----------
+const POWERS := {
+	"barrage": {"name": "Triple disparo", "desc": "Lanza 3 cocos a la vez, uno por carril."},
+	"dash": {"name": "Carrera veloz", "desc": "Invencible y más rápido durante 3 s."},
+	"magnet": {"name": "Imán", "desc": "Atrae las monedas durante 9 s."},
+	"coins": {"name": "Lluvia de monedas", "desc": "Aparecen monedas en los 3 carriles."},
+	"shield": {"name": "Escudo", "desc": "Te protege durante 8 s."},
+	"x2": {"name": "Doble", "desc": "Puntos y monedas x2 durante 10 s."},
+	"blast": {"name": "Explosión", "desc": "Destruye todo lo que tengas enfrente."},
+	"heal": {"name": "Respiro", "desc": "Calma al jaguar y te hace invencible 3 s."},
+}
+
+const COSTUME_POWER := {
+	"pirata": "barrage", "surfista": "dash", "explorador": "magnet", "carnaval": "coins", "futbolista": "dash",
+	"gala": "x2", "capitan": "barrage", "jaguar": "dash", "maya": "shield", "salvavidas": "heal", "chef": "coins",
+	"astronauta": "shield", "poncho": "magnet", "heroe": "blast", "neon": "dash", "hacker": "x2",
+	"caballero": "blast", "piloto": "barrage", "titan": "blast", "velocista": "dash",
+}
+
+
+func power_of(costume_id: String) -> String:
+	return String(COSTUME_POWER.get(costume_id, ""))
+
+
+# ---------- Experiencia y nivel de jugador ----------
+func xp_total_for(level: int) -> int:
+	return 50 * level * (level - 1)
+
+
+func player_level() -> int:
+	_ensure_xp()
+	var l := 1
+	while int(data.xp) >= xp_total_for(l + 1):
+		l += 1
+	return l
+
+
+## [xp dentro del nivel, xp necesaria para el siguiente]
+func xp_progress() -> Array:
+	var l := player_level()
+	var base := xp_total_for(l)
+	return [int(data.xp) - base, xp_total_for(l + 1) - base]
+
+
+func _ensure_xp() -> void:
+	if int(data.xp) < 0:
+		data.xp = int(data.total_dist) / 20 + int(data.total_coins) + int(data.runs) * 20
+
+
+func add_xp(n: int) -> Array:
+	var msgs: Array = []
+	var before := player_level()
+	data.xp = int(data.xp) + n
+	var after := player_level()
+	msgs.append("+%d XP" % n)
+	for l in range(before + 1, after + 1):
+		var bonus := 40 * l
+		data.coins = int(data.coins) + bonus
+		msgs.append("¡NIVEL %d! +%d monedas" % [l, bonus])
+		for tab in TABS:
+			for it in shop_items(tab):
+				if item_req(tab, String(it.id)) == l and int(it.cost) > 0:
+					msgs.append("Desbloqueado: %s" % it.name)
+		if l == 2:
+			msgs.append("Desbloqueado: arma Bumerán")
+		if l == 4:
+			msgs.append("Desbloqueado: arma Bomba")
+	check_achievements()
+	save_game()
+	return msgs
+
+
+func item_req(tab: String, id: String) -> int:
+	var c := int(item_def(tab, id).cost)
+	if c <= 0:
+		return 1
+	return clampi(1 + c / 250, 1, 10)
+
+
+func can_buy(tab: String, id: String) -> bool:
+	return player_level() >= item_req(tab, id)
+
+
+# ---------- Potenciadores de inicio ----------
+const BOOSTS := {
+	"magnet": {"name": "Imán inicial", "cost": 50, "desc": "Empiezas absorbiendo monedas 12 s."},
+	"x2": {"name": "Puntos x2", "cost": 60, "desc": "Empiezas con puntos dobles 15 s."},
+	"shield": {"name": "Escudo inicial", "cost": 60, "desc": "Empiezas protegido 15 s."},
+	"weapon": {"name": "Arma inicial", "cost": 70, "desc": "Empiezas con 4 bumeranes."},
+	"fly": {"name": "Impulso", "cost": 90, "desc": "Empiezas volando 6 s sobre monedas."},
+}
+
+
+func boost_count(id: String) -> int:
+	return int((data.boosts as Dictionary).get(id, 0))
+
+
+func buy_boost(id: String) -> bool:
+	var c := int(BOOSTS[id].cost)
+	if int(data.coins) < c:
+		return false
+	data.coins = int(data.coins) - c
+	data.boosts[id] = boost_count(id) + 1
+	save_game()
+	return true
+
+
+func use_boost(id: String) -> bool:
+	if boost_count(id) <= 0:
+		return false
+	data.boosts[id] = boost_count(id) - 1
+	save_game()
+	return true
