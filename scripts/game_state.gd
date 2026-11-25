@@ -530,10 +530,10 @@ func total_stars() -> int:
 func level_def(n: int) -> Dictionary:
 	return {
 		"n": n,
-		"biome": (n - 1) % 6,
+		"biome": (n - 1) / 5,
 		"goal": 350.0 + n * 70.0,
-		"speed": minf(11.0 + n * 0.45, 24.0),
-		"gap": clampf(19.0 - n * 0.4, 8.0, 19.0),
+		"speed": minf(11.5 + n * 0.55, 25.0),
+		"gap": clampf(18.0 - n * 0.5, 7.5, 18.0),
 		"diff": n,
 		"coin_goal": 20 + n * 3,
 		"reward": 40 + n * 8,
