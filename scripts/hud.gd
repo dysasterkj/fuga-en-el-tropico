@@ -836,7 +836,6 @@ func _refresh_mode() -> void:
 func _refresh_levels() -> void:
 	_clear(levels_box)
 	levels_box.add_child(_lbl("NIVELES", 36, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
-Playa · Selva · Colonial · Neón · Galaxia · Héroes", 15, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	var sc := ScrollContainer.new()
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
