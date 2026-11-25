@@ -295,10 +295,10 @@ func advance(delta: float, speed: float, dist: float, ppos: Vector3, magnet: boo
 		if magnet:
 			var dv := center - c.position
 			var dl := dv.length()
-			if (dl < 11.0 or c.has_meta("pull")) and dl > 0.05:
+			if (dl < 15.0 or c.has_meta("pull")) and dl > 0.05:
 				var pt: float = float(c.get_meta("pull", 0.0)) + delta
 				c.set_meta("pull", pt)
-				var sp := 14.0 + pt * 70.0 + (11.0 - minf(dl, 11.0)) * 2.0
+				var sp := 20.0 + pt * 90.0 + (15.0 - minf(dl, 15.0)) * 2.5
 				c.position += dv.normalized() * minf(dl, sp * delta)
 				c.scale = Vector3.ONE * (1.35 + 0.2 * sin(pt * 22.0))
 				c.rotation.y += 9.0 * delta
@@ -784,8 +784,11 @@ func fire(kind: String, x: float) -> void:
 			Toon.part(n, Toon.box(Vector3(0.95, 0.13, 0.22)), Color("fbbf24"), Vector3(-0.3, 0, 0), Vector3(0, 0.55, 0))
 			Toon.part(n, Toon.box(Vector3(0.95, 0.13, 0.22)), Color("f59e0b"), Vector3(0.3, 0, 0), Vector3(0, -0.55, 0))
 		"punch":
-			Toon.glow(n, Toon.sphere(0.34), Color("fde047"), Vector3.ZERO, Vector3.ZERO, 0.95)
-			Toon.glow(n, Toon.sphere(0.2), Color("ffffff"))
+			Toon.glow(n, Toon.sphere(0.62), Color("ff2d55"), Vector3.ZERO, Vector3.ZERO, 0.38)
+			Toon.part(n, Toon.sphere(0.34), Color("e11d48"))
+			Toon.part(n, Toon.cyl(0.26, 0.26, 0.16), Color("f8fafc"), Vector3(0, 0, 0.3), Vector3(PI / 2, 0, 0), false)
+			for sx in [-0.28, 0.0, 0.28]:
+				Toon.glow(n, Toon.box(Vector3(0.06, 0.06, 0.9)), Color("fecdd3"), Vector3(sx, sx * 0.4, 0.9))
 		"bomb":
 			Toon.part(n, Toon.sphere(0.36), Color("1f2937"))
 			Toon.glow(n, Toon.sphere(0.12), Color("fb923c"), Vector3(0, 0.4, 0))
@@ -840,7 +843,7 @@ func _update_projs(delta: float) -> void:
 		var n: Node3D = p.node
 		n.position.z -= 60.0 * delta
 		n.rotation.y += 14.0 * delta if p.kind == "boom" else 0.0
-		n.rotation.x -= 10.0 * delta if p.kind != "boom" else 0.0
+		n.rotation.x -= 10.0 * delta if p.kind == "coco" or p.kind == "bomb" else 0.0
 		var dead := false
 		for e in ents.duplicate():
 			if e.kind == "plat":

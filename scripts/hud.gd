@@ -238,7 +238,8 @@ func _build_game() -> void:
 	_place(toast_lbl, 30, 430, W - 60, 70)
 	toast_lbl.visible = false
 
-	hint_lbl = _lbl("Desliza  ←  →  para moverte  ·  ↑ saltar  ·  ↓ deslizar", 18, Color(1, 1, 1, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
+	hint_lbl = _lbl("Desliza para moverte, saltar y deslizar
+NARANJA: golpe o arma   ·   MORADO: poder del traje", 18, Color(1, 1, 1, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
 	g.add_child(hint_lbl)
 	_place(hint_lbl, 0, H - 70, W, 30)
 
@@ -1087,6 +1088,12 @@ func _refresh_prep() -> void:
 			_refresh_prep())
 		row.add_child(use)
 		v.add_child(row)
+	var hl := _lbl("Cómo se usa: elige potenciadores con USAR y toca ¡CORRER! Se activan solos al empezar (verás el aviso y el tiempo arriba).
+GOLPE (botón naranja): lanza un guante que derrota enemigos. Las armas lo reemplazan hasta gastarse.
+PODER (botón morado): el poder de tu traje, con enfriamiento.", 14, Color("94a3b8"))
+	hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hl.custom_minimum_size = Vector2(420, 0)
+	v.add_child(hl)
 	var pw := GameState.power_of(GameState.equipped("costume"))
 	var pl := _lbl(("Poder del traje: %s — %s" % [GameState.POWERS[pw].name, GameState.POWERS[pw].desc]) if pw != "" else "Tu traje no tiene poder. ¡Compra uno en la tienda!", 15, Color("c4b5fd"))
 	pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

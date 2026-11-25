@@ -667,14 +667,6 @@ func _level_complete() -> void:
 	state = State.WIN
 	win_t = 0.0
 	win_shown = false
-	power_id = GameState.power_of(GameState.equipped("costume"))
-	power_cd = 3.0
-	punch_cd = 0.0
-	boost_t = 0.0
-	_apply_boosts()
-	if test_give == "magnet":
-		timers.magnet = 60.0
-		_give_weapon("boom", 5)
 	Sfx.play("win")
 	Sfx.play("zone")
 	hud.banner("¡META!", Color("4ade80"))
@@ -778,9 +770,15 @@ func _apply_boosts() -> void:
 		if not autoplay and not GameState.use_boost(String(b)):
 			continue
 		match String(b):
-			"magnet": timers.magnet = 12.0
-			"x2": timers.x2 = 15.0
-			"shield": timers.shield = 15.0
+			"magnet":
+				timers.magnet = 12.0
+				hud.toast("¡IMÁN ACTIVO! Atrae las monedas cercanas")
+			"x2":
+				timers.x2 = 15.0
+				hud.toast("¡PUNTOS x2 ACTIVOS!")
+			"shield":
+				timers.shield = 15.0
+				hud.toast("¡ESCUDO ACTIVO!")
 			"weapon": _give_weapon("boom", 4)
 			"fly":
 				timers.fly = 6.0
@@ -844,6 +842,7 @@ func _open_update() -> void:
 	var rt = Engine.get_singleton("AndroidRuntime")
 	_dl_ctx = rt.getApplicationContext()
 	_dl_dm = _dl_ctx.getSystemService("download") if _dl_ctx else null
+	hud.set_update_status("Preparando descarga (1/3)…")
 	if _dl_dm == null:
 		_fallback_update()
 		return
@@ -860,6 +859,7 @@ func _open_update() -> void:
 	req.setMimeType("application/vnd.android.package-archive")
 	req.setDestinationInExternalFilesDir(_dl_ctx, null, "update.apk")
 	_dl_id = int(_dl_dm.enqueue(req))
+	hud.set_update_status("Descargando (2/3)…")
 	_dl_ticks = 0
 	hud.set_update_status("Descargando actualización…")
 	_dl_timer = Timer.new()
@@ -891,6 +891,7 @@ func _install_uri(uri) -> void:
 	if intent == null or activity == null:
 		_fallback_update()
 		return
+	hud.set_update_status("Abriendo instalador (3/3)…")
 	intent.setDataAndType(uri, "application/vnd.android.package-archive")
 	intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK)
 	activity.startActivity(intent)
