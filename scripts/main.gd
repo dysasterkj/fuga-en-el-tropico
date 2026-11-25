@@ -801,6 +801,7 @@ func _exit_to_menu() -> void:
 
 # ---------- Actualización dentro de la app (Android: DownloadManager + instalador) ----------
 var _dl_id := -1
+var _dl_started := false
 var _dl_timer: Timer
 var _dl_ticks := 0
 var _dl_dm
@@ -813,7 +814,7 @@ func _android_ok() -> bool:
 
 func _update_apk_path() -> String:
 	var rt = Engine.get_singleton("AndroidRuntime")
-	var dir = rt.getApplicationContext().getExternalFilesDir(null)
+	var dir = rt.getApplicationContext().getExternalFilesDir("")
 	if dir == null:
 		return ""
 	return String(dir.getAbsolutePath()) + "/update.apk"
@@ -844,6 +845,10 @@ func _open_update() -> void:
 		return
 	if _dl_id >= 0:
 		return
+	_dl_started = false
+	get_tree().create_timer(4.0).timeout.connect(func():
+		if not _dl_started and _dl_id < 0:
+			_fallback_update())
 	var rt = Engine.get_singleton("AndroidRuntime")
 	_dl_ctx = rt.getApplicationContext()
 	_dl_dm = _dl_ctx.getSystemService("download") if _dl_ctx else null
@@ -854,7 +859,7 @@ func _open_update() -> void:
 	_cleanup_update_file()
 	var Uri = JavaClassWrapper.wrap("android.net.Uri")
 	var Req = JavaClassWrapper.wrap("android.app.DownloadManager$Request")
-	var req = Req.Request(Uri.parse(update_url)) if Req and Uri else null
+	var req = Req.call("DownloadManager$Request", Uri.parse(update_url)) if Req and Uri else null
 	if req == null:
 		_fallback_update()
 		return
@@ -862,8 +867,15 @@ func _open_update() -> void:
 	req.setDescription("Descargando actualización")
 	req.setNotificationVisibility(1)
 	req.setMimeType("application/vnd.android.package-archive")
-	req.setDestinationInExternalFilesDir(_dl_ctx, null, "update.apk")
+	var apk_path := _update_apk_path()
+	var JFile = JavaClassWrapper.wrap("java.io.File")
+	var dest = Uri.fromFile(JFile.File(apk_path)) if apk_path != "" and JFile else null
+	if dest == null:
+		_fallback_update()
+		return
+	req.setDestinationUri(dest)
 	_dl_id = int(_dl_dm.enqueue(req))
+	_dl_started = true
 	hud.set_update_status("Descargando (2/3)…")
 	_dl_ticks = 0
 	hud.set_update_status("Descargando actualización…")
