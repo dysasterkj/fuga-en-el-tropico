@@ -822,7 +822,7 @@ func _refresh_mode() -> void:
 	var lv := _btn("NIVELES", C_CORAL, 34, 380, 84)
 	lv.pressed.connect(func(): open_page("levels"))
 	_center(mode_box, lv)
-	var d2 := _lbl("%d niveles en 6 mundos. Llega a la meta y gana estrellas.   Completados: %d/%d  ·  Estrellas: %d" % [GameState.MAX_LEVEL, GameState.levels_done(), GameState.MAX_LEVEL, GameState.total_stars()], 17, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	var d2 := _lbl("%d niveles, cada uno en un mundo distinto. Llega a la meta y gana estrellas.   Completados: %d/%d  ·  Estrellas: %d" % [GameState.MAX_LEVEL, GameState.levels_done(), GameState.MAX_LEVEL, GameState.total_stars()], 17, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
 	d2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	mode_box.add_child(d2)
 	var d3 := _lbl("Cada carrera gasta 1 vida.", 16, C_SUN, HORIZONTAL_ALIGNMENT_CENTER)
@@ -836,6 +836,9 @@ func _refresh_mode() -> void:
 func _refresh_levels() -> void:
 	_clear(levels_box)
 	levels_box.add_child(_lbl("NIVELES", 36, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+	var wl := _lbl("El mundo cambia en cada nivel:
+Playa · Selva · Colonial · Neón · Galaxia · Héroes", 15, C_MUTED, HORIZONTAL_ALIGNMENT_CENTER)
+	levels_box.add_child(wl)
 	var sc := ScrollContainer.new()
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -844,7 +847,7 @@ func _refresh_levels() -> void:
 	v.add_theme_constant_override("separation", 8)
 	sc.add_child(v)
 	for w in 6:
-		v.add_child(_lbl("Mundo %d · %s" % [w + 1, GameState.WORLD_NAMES[w]], 20, C_SUN))
+		v.add_child(_lbl("Niveles %d–%d" % [w * 5 + 1, w * 5 + 5], 20, C_SUN))
 		var grid := GridContainer.new()
 		grid.columns = 5
 		grid.add_theme_constant_override("h_separation", 8)
@@ -1050,7 +1053,7 @@ func open_prep(m: String, n: int) -> void:
 func _refresh_prep() -> void:
 	_clear(prep_box)
 	prep_box.add_child(_lbl("PREPARA TU CARRERA", 32, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER))
-	var sub := "Modo infinito" if prep_mode == "endless" else "Nivel %d · %s" % [prep_level, GameState.WORLD_NAMES[(prep_level - 1) / 5]]
+	var sub := "Modo infinito" if prep_mode == "endless" else "Nivel %d · %s" % [prep_level, GameState.WORLD_NAMES[(prep_level - 1) % 6]]
 	prep_box.add_child(_lbl(sub + "      ● %d" % int(GameState.data.coins), 19, C_SUN, HORIZONTAL_ALIGNMENT_CENTER))
 	var sc := ScrollContainer.new()
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL

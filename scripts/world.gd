@@ -9,7 +9,7 @@ const LANE_W := 2.2
 const SEG_LEN := 24.0
 const SEG_COUNT := 10
 const SPAWN_AHEAD := 150.0
-const ZONE_LEN := 500.0
+const ZONE_LEN := 300.0
 const PLAT_H := 1.4
 const RAMP_LEN := 4.0
 
@@ -335,7 +335,7 @@ func advance(delta: float, speed: float, dist: float, ppos: Vector3, magnet: boo
 			break
 		var plen := _spawn_pattern(next_z, sd)
 		var level := int(sd / ZONE_LEN)
-		var gap := clampf(19.0 - level * 2.0 - sd * 0.001, 9.0, 19.0)
+		var gap := clampf(19.0 - level * 1.4 - sd * 0.001, 9.0, 19.0)
 		if level_mode:
 			gap = float(lvl.gap)
 		next_z -= plen + gap
@@ -1127,6 +1127,8 @@ func _proj_hit(p: Dictionary, e: Dictionary) -> bool:
 			_kill_enemy(e)
 		else:
 			_burst((e.node as Node3D).position + Vector3(0, 1.3, 0), Color("ffffff"), 4)
+			(e.bar as Node3D).scale.x = clampf(float(e.hp) / float(e.hp_max), 0.02, 1.0)
+			Sfx.play("hit", 1.6, -5.0)
 			(e.node as Node3D).position.z -= 1.5
 	elif p.kind == "punch":
 		_burst(n.position, Color("fde047"), 4)
@@ -1226,4 +1228,15 @@ func _add_enemy(lane: int, z: float, biome: int) -> void:
 	var e := _add_ent(n, "low", [lane], 0.5, z, 3.5, 2.4)
 	e["enemy"] = true
 	e["hp"] = 3 if level_mode and int(lvl.n) > 12 else 2
+	e["hp_max"] = e["hp"]
+	var bar := Node3D.new()
+	bar.position = Vector3(0, 2.95, 0)
+	bar.scale = Vector3(1.5, 1.7, 1.0)
+	n.add_child(bar)
+	Toon.glow(bar, Toon.box(Vector3(1.06, 0.2, 0.04)), Color("0f172a"), Vector3.ZERO)
+	var piv := Node3D.new()
+	piv.position = Vector3(-0.5, 0, -0.03)
+	bar.add_child(piv)
+	Toon.glow(piv, Toon.box(Vector3(1.0, 0.14, 0.04)), Color("ef4444"), Vector3(0.5, 0, 0))
+	e["bar"] = piv
 	e["legs"] = legs

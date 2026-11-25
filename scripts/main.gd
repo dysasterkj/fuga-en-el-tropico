@@ -8,7 +8,7 @@ const Toon = preload("res://scripts/toon.gd")
 
 enum State { MENU, PLAY, DEAD, PAUSE, WIN }
 
-const ZONE_LEN := 500.0
+const ZONE_LEN := 300.0
 
 var state: int = State.MENU
 var world
